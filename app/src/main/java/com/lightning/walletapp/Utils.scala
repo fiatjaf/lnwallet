@@ -30,6 +30,7 @@ import org.bitcoinj.script.Script
 import scala.concurrent.Future
 import android.content.Intent
 import android.os.Bundle
+import android.net.Uri
 
 import com.lightning.walletapp.lnutils.IconGetter.{maxDialog, scrWidth}
 import com.lightning.walletapp.ln.Tools.{none, runAnd, wrap}
@@ -198,9 +199,13 @@ trait TimerActivity extends AppCompatActivity { me =>
     def onItemClick(a: AdapterView[_], view: View, pos: Int, id: Long) = listItemTapRunner(pos)
   }
 
-  def share(exportedTextData: String): Unit = {
-    val share = new Intent setAction Intent.ACTION_SEND setType "text/plain"
-    me startActivity share.putExtra(Intent.EXTRA_TEXT, exportedTextData)
+  def browse(url: String) = startActivity {
+    new Intent(Intent.ACTION_VIEW, Uri parse url)
+  }
+
+  def share(text: String) = startActivity {
+    val share = new Intent setAction Intent.ACTION_SEND
+    share.setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
   }
 
   def viewMnemonic(view: View) = {
