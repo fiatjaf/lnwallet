@@ -155,6 +155,7 @@ extends SQLiteOpenHelper(context, name, null, 16) {
 
   val base = getWritableDatabase
   val asString: Any => String = {
+    case alreadyString: String => alreadyString
     case byteVec: ByteVector => byteVec.toHex
     case otherwise => otherwise.toString
   }
