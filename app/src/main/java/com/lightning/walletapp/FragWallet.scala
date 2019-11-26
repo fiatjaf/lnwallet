@@ -408,6 +408,11 @@ class FragWalletWorker(val host: WalletActivity, frag: View) extends SearchBar w
         app.getString(ln_outgoing_title).format(humanStatus, sentHuman, inFiat, denom.coloredOut(fee, denom.sign), paidFeePercent)
       }
 
+      def incomingTitle = {
+        val humanSum = denom.coloredIn(info.firstSum, denom.sign)
+        app.getString(ln_incoming_title).format(humanStatus, humanSum, inFiat)
+      }
+
       info.incoming -> hostedBlocks match {
         case 0 \ _ if info.lastExpiry == 0 =>
           // This payment has not been tried yet, could be a failure because offline or no routes found, do not allow to retry it
@@ -435,16 +440,12 @@ class FragWalletWorker(val host: WalletActivity, frag: View) extends SearchBar w
         case 1 \ Some(blocksUntilExpiry) if info.status != SUCCESS =>
           // This is an ordinary payment, we are receiving through hosted channel and preimage is revealed
           val expiryBlocksLeft = app.plur1OrZero(lnStatusExpiry, blocksUntilExpiry - broadcaster.currentHeight)
-          val incomingTitle = app.getString(ln_incoming_title).format(humanStatus, denom.coloredIn(info.firstSum, denom.sign), inFiat)
           val title = s"$expiryBlocksLeft<br><br>${app getString ln_hosted_preimage_revealed}<br><br>$incomingTitle"
           showForm(negBuilder(dialog_ok, title.html, detailsWrapper).create)
 
-        case 1 \ _ =>
-          // This payment is SUCCESSFUL or FAILED or UNKNOWN or WAITING, send user to QR page in a latter case
-          val incomingTitle = app.getString(ln_incoming_title).format(humanStatus, denom.coloredIn(info.firstSum, denom.sign), inFiat)
-          if (info.isLooper) showForm(alertDialog = negBuilder(dialog_ok, title = outgoingTitle.html, body = detailsWrapper).create)
-          else if (info.status != WAITING) showForm(negBuilder(dialog_ok, incomingTitle.html, detailsWrapper).create)
-          else host PRQR info.pr
+        case 1 \ _ if info.isLooper => showForm(negBuilder(dialog_ok, outgoingTitle.html, detailsWrapper).create)
+        case 1 \ _ if info.status != WAITING => showForm(negBuilder(dialog_ok, incomingTitle.html, detailsWrapper).create)
+        case 1 \ _ => host PRQR info.pr
       }
     }
   }
