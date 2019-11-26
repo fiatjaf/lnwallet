@@ -426,13 +426,13 @@ class FragWalletWorker(val host: WalletActivity, frag: View) extends SearchBar w
           val title = if (info.status == WAITING) s"$expiryBlocksLeft<br><br>$outgoingTitle" else outgoingTitle
           showForm(negBuilder(dialog_ok, title.html, detailsWrapper).create)
 
-        case 1 \ Some(blocksUntilExpiry) if info.isLooper && info.status == WAITING =>
+        case 1 \ Some(blocksUntilExpiry) if info.isLooper && info.status != SUCCESS =>
           // This is a reflexive payment, we are receiving through a hosted channel and preimage is revealed
           val expiryBlocksLeft = app.plur1OrZero(lnStatusExpiry, blocksUntilExpiry - broadcaster.currentHeight)
           val title = s"$expiryBlocksLeft<br><br>${app getString ln_hosted_preimage_revealed}<br><br>$outgoingTitle"
           showForm(negBuilder(dialog_ok, title.html, detailsWrapper).create)
 
-        case 1 \ Some(blocksUntilExpiry) if info.status == WAITING =>
+        case 1 \ Some(blocksUntilExpiry) if info.status != SUCCESS =>
           // This is an ordinary payment, we are receiving through hosted channel and preimage is revealed
           val expiryBlocksLeft = app.plur1OrZero(lnStatusExpiry, blocksUntilExpiry - broadcaster.currentHeight)
           val incomingTitle = app.getString(ln_incoming_title).format(humanStatus, denom.coloredIn(info.firstSum, denom.sign), inFiat)

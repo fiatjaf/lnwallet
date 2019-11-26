@@ -267,7 +267,7 @@
     <array name="ln_hosted_chan_actions">
         <item><![CDATA[About hosted channels]]></item>
         <item><![CDATA[Export channel state]]></item>
-        <item><![CDATA[Remove this channel]]></item>
+        <item><![CDATA[Remove channel]]></item>
     </array>
 
     <string name="btc_empty"><![CDATA[<font color=#BBBBBB>Немає монет он-чейн</font>]]></string>
