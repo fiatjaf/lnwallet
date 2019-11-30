@@ -85,8 +85,8 @@ object Features {
   }
 }
 
-class LightningException(reason: String = "Failure") extends RuntimeException(reason)
-case class CMDAddImpossible(rd: RoutingData, code: Int) extends LightningException
+class LightningException(reason: String = "Lightning related failure") extends RuntimeException(reason)
+case class CMDAddImpossible(rd: RoutingData, code: Int, hint: Long = 0L) extends LightningException
 
 // STATE MACHINE
 
