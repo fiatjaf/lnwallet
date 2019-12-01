@@ -53,11 +53,6 @@ object Utils {
   lazy val denoms = List(SatDenomination, BtcDenomination)
   lazy val app = appReference
 
-  lazy val defaultHostedNode = {
-    val nodeId = "02330d13587b67a85c0a36ea001c4dba14bcd48dda8988f7303275b040bffb6abd"
-    HostedChannelRequest(s"$nodeId@172.245.74.10:9935", Some("Testnet-Node"), "00")
-  }
-
   val fiatNames =
     Map("usd" -> "US Dollar", "eur" -> "Euro", "jpy" -> "Japanese Yen", "cny" -> "Chinese Yuan",
       "inr" -> "Indian Rupee", "ils" -> "Israeli Shekel", "cad" -> "Canadian Dollar", "rub" -> "Русский Рубль",

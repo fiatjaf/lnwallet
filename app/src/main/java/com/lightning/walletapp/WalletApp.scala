@@ -46,6 +46,8 @@ import java.io.File
 
 
 class WalletApp extends Application { me =>
+  Utils.appReference = me
+
   lazy val params = org.bitcoinj.params.TestNet3Params.get
   lazy val foregroundServiceIntent = new Intent(me, AwaitService.classof)
   lazy val prefs = getSharedPreferences("prefs", Context.MODE_PRIVATE)
@@ -80,7 +82,6 @@ class WalletApp extends Application { me =>
     if (null == kit || null == olympus || null == db || null == extendedNodeKey) false
     else kit.state match { case STARTING | RUNNING => true case _ => false }
 
-  Utils.appReference = me
   override def onCreate = wrap(super.onCreate) {
     // These cannot be lazy vals because values may change
     Utils.fiatCode = prefs.getString(AbstractKit.FIAT_TYPE, "usd")
