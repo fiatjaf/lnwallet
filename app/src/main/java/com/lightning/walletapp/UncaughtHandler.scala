@@ -6,7 +6,6 @@ import com.lightning.walletapp.AbstractKit.ERROR_REPORT
 import android.content.Intent
 import android.app.Activity
 
-
 object UncaughtHandler {
   def toText(exc: Throwable) = {
     val stackTraceWriter = new StringWriter
@@ -15,8 +14,7 @@ object UncaughtHandler {
   }
 }
 
-class UncaughtHandler(ctxt: Activity)
-extends UncaughtExceptionHandler {
+class UncaughtHandler(ctxt: Activity) extends UncaughtExceptionHandler {
 
   def uncaughtException(thread: Thread, exc: Throwable): Unit = {
     val emerge: Class[EmergencyActivity] = classOf[EmergencyActivity]

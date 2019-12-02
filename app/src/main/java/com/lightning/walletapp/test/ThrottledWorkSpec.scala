@@ -3,7 +3,6 @@ package com.lightning.walletapp.test
 import com.lightning.walletapp.helper.ThrottledWork
 import com.lightning.walletapp.lnutils.JsonHttpUtils._
 
-
 class ThrottledWorkSpec {
   def allTests = {
 

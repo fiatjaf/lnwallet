@@ -10,11 +10,13 @@ import android.content.Context
 import scodec.bits.ByteVector
 import android.net.Uri
 
-
 object OlympusTable extends Table {
-  val (table, identifier, url, data, auth, order, removable) = ("olympus", "identifier", "url", "data", "auth", "ord", "removable")
-  val newSql = s"INSERT OR IGNORE INTO $table ($identifier, $url, $data, $auth, $order, $removable) VALUES (?, ?, ?, ?, ?, ?)"
-  val updMetaSql = s"UPDATE $table SET $url = ?, $auth = ?, $order = ? WHERE $identifier = ?"
+  val (table, identifier, url, data, auth, order, removable) =
+    ("olympus", "identifier", "url", "data", "auth", "ord", "removable")
+  val newSql =
+    s"INSERT OR IGNORE INTO $table ($identifier, $url, $data, $auth, $order, $removable) VALUES (?, ?, ?, ?, ?, ?)"
+  val updMetaSql =
+    s"UPDATE $table SET $url = ?, $auth = ?, $order = ? WHERE $identifier = ?"
   val updDataSql = s"UPDATE $table SET $data = ? WHERE $identifier = ?"
   val selectAllSql = s"SELECT * FROM $table ORDER BY $order ASC"
   val killSql = s"DELETE FROM $table WHERE $identifier = ?"
@@ -28,8 +30,10 @@ object OlympusTable extends Table {
 }
 
 object OlympusLogTable extends Table {
-  val (table, tokensUsed, explanation, stamp) = ("olympuslog", "tokensused", "explanation", "stamp")
-  val newSql = s"INSERT INTO $table ($tokensUsed, $explanation, $stamp) VALUES (?, ?, ?)"
+  val (table, tokensUsed, explanation, stamp) =
+    ("olympuslog", "tokensused", "explanation", "stamp")
+  val newSql =
+    s"INSERT INTO $table ($tokensUsed, $explanation, $stamp) VALUES (?, ?, ?)"
   val selectAllSql = s"SELECT * FROM $table ORDER BY $stamp DESC LIMIT 6"
 
   val createSql = s"""
@@ -41,7 +45,8 @@ object OlympusLogTable extends Table {
 
 object ChannelTable extends Table {
   val Tuple3(table, identifier, data) = Tuple3("channel", "identifier", "data")
-  val newSql = s"INSERT OR IGNORE INTO $table ($identifier, $data) VALUES (?, ?)"
+  val newSql =
+    s"INSERT OR IGNORE INTO $table ($identifier, $data) VALUES (?, ?)"
   val updSql = s"UPDATE $table SET $data = ? WHERE $identifier = ?"
   val selectAllSql = s"SELECT * FROM $table ORDER BY $id DESC"
   val killSql = s"DELETE FROM $table WHERE $identifier = ?"
@@ -55,9 +60,12 @@ object ChannelTable extends Table {
 }
 
 object BadEntityTable extends Table {
-  val (table, resId, expire, amount) = ("badentity", "resId", "expire", "amount")
-  val newSql = s"INSERT OR IGNORE INTO $table ($resId, $expire, $amount) VALUES (?, ?, ?)"
-  val selectSql = s"SELECT * FROM $table WHERE $expire > ? AND $amount <= ? LIMIT 320"
+  val (table, resId, expire, amount) =
+    ("badentity", "resId", "expire", "amount")
+  val newSql =
+    s"INSERT OR IGNORE INTO $table ($resId, $expire, $amount) VALUES (?, ?, ?)"
+  val selectSql =
+    s"SELECT * FROM $table WHERE $expire > ? AND $amount <= ? LIMIT 320"
   val updSql = s"UPDATE $table SET $expire = ?, $amount = ? WHERE $resId = ?"
 
   val createSql = s"""
@@ -75,7 +83,8 @@ object BadEntityTable extends Table {
 
 object RouteTable extends Table {
   val (table, path, targetNode) = Tuple3("route", "path", "targetNode")
-  val newSql = s"INSERT OR IGNORE INTO $table ($path, $targetNode) VALUES (?, ?)"
+  val newSql =
+    s"INSERT OR IGNORE INTO $table ($path, $targetNode) VALUES (?, ?)"
   val updSql = s"UPDATE $table SET $path = ? WHERE $targetNode = ?"
   val selectSql = s"SELECT * FROM $table WHERE $targetNode = ?"
   val killSql = s"DELETE FROM $table WHERE $targetNode = ?"
@@ -89,24 +98,34 @@ object RouteTable extends Table {
 }
 
 object PaymentTable extends Table {
-  val (search, table, pr, preimage, incoming, status, stamp) = ("search", "payment", "pr", "preimage", "incoming", "status", "stamp")
-  val (description, hash, firstMsat, lastMsat, lastExpiry, chanId) = ("description", "hash", "firstMsat", "lastMsat", "lastExpiry", "chanId")
-  val insert11 = s"$pr, $preimage, $incoming, $status, $stamp, $description, $hash, $firstMsat, $lastMsat, $lastExpiry, $chanId"
-  val newSql = s"INSERT OR IGNORE INTO $table ($insert11) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  val (search, table, pr, preimage, incoming, status, stamp) =
+    ("search", "payment", "pr", "preimage", "incoming", "status", "stamp")
+  val (description, hash, firstMsat, lastMsat, lastExpiry, chanId) =
+    ("description", "hash", "firstMsat", "lastMsat", "lastExpiry", "chanId")
+  val insert11 =
+    s"$pr, $preimage, $incoming, $status, $stamp, $description, $hash, $firstMsat, $lastMsat, $lastExpiry, $chanId"
+  val newSql =
+    s"INSERT OR IGNORE INTO $table ($insert11) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   val newVirtualSql = s"INSERT INTO $fts$table ($search, $hash) VALUES (?, ?)"
 
   // Selecting
   val selectSql = s"SELECT * FROM $table WHERE $hash = ?"
   val selectRecentSql = s"SELECT * FROM $table ORDER BY $id DESC LIMIT 48"
-  val selectPaymentNumSql = s"SELECT count($hash) FROM $table WHERE $status = $SUCCESS AND $chanId = ?"
-  val searchSql = s"SELECT * FROM $table WHERE $hash IN (SELECT $hash FROM $fts$table WHERE $search MATCH ? LIMIT 96)"
+  val selectPaymentNumSql =
+    s"SELECT count($hash) FROM $table WHERE $status = $SUCCESS AND $chanId = ?"
+  val searchSql =
+    s"SELECT * FROM $table WHERE $hash IN (SELECT $hash FROM $fts$table WHERE $search MATCH ? LIMIT 96)"
 
   // Updating, creating, removing
-  val updOkOutgoingSql = s"UPDATE $table SET $status = $SUCCESS, $preimage = ?, $chanId = ? WHERE $hash = ?"
-  val updOkIncomingSql = s"UPDATE $table SET $status = $SUCCESS, $firstMsat = ?, $stamp = ?, $chanId = ? WHERE $hash = ?"
-  val updLastParamsOutgoingSql = s"UPDATE $table SET $status = $WAITING, $firstMsat = ?, $lastMsat = ?, $lastExpiry = ? WHERE $hash = ?"
+  val updOkOutgoingSql =
+    s"UPDATE $table SET $status = $SUCCESS, $preimage = ?, $chanId = ? WHERE $hash = ?"
+  val updOkIncomingSql =
+    s"UPDATE $table SET $status = $SUCCESS, $firstMsat = ?, $stamp = ?, $chanId = ? WHERE $hash = ?"
+  val updLastParamsOutgoingSql =
+    s"UPDATE $table SET $status = $WAITING, $firstMsat = ?, $lastMsat = ?, $lastExpiry = ? WHERE $hash = ?"
   // Broken in-flight payment may become fulfilled but then get overridden on restart unless we check for SUCCESS
-  val updStatusSql = s"UPDATE $table SET $status = ? WHERE $hash = ? AND $status <> $SUCCESS"
+  val updStatusSql =
+    s"UPDATE $table SET $status = ? WHERE $hash = ? AND $status <> $SUCCESS"
 
   val updFailWaitingSql = s"""
     UPDATE $table SET $status = $FAILURE /* fail those payments which... */
@@ -114,7 +133,8 @@ object PaymentTable extends Table {
     OR ($status = $WAITING AND $incoming = 1 AND $stamp < ?) /* incoming and expired by now */"""
 
   // Once incoming or outgoing payment is settled we can search it by various metadata
-  val createVSql = s"CREATE VIRTUAL TABLE IF NOT EXISTS $fts$table USING $fts($search, $hash)"
+  val createVSql =
+    s"CREATE VIRTUAL TABLE IF NOT EXISTS $fts$table USING $fts($search, $hash)"
 
   val createSql = s"""
     CREATE TABLE IF NOT EXISTS $table (
@@ -130,9 +150,12 @@ object PaymentTable extends Table {
 }
 
 object RevokedInfoTable extends Table {
-  val (table, txId, chanId, myBalance, info, uploaded) = ("revokedinfo", "txid", "chanid", "mybalance", "info", "uploaded")
-  val selectLocalSql = s"SELECT * FROM $table WHERE $chanId = ? AND $myBalance < ? AND $uploaded = 0 ORDER BY $myBalance ASC LIMIT 200"
-  val newSql = s"INSERT INTO $table ($txId, $chanId, $myBalance, $info, $uploaded) VALUES (?, ?, ?, ?, 0)"
+  val (table, txId, chanId, myBalance, info, uploaded) =
+    ("revokedinfo", "txid", "chanid", "mybalance", "info", "uploaded")
+  val selectLocalSql =
+    s"SELECT * FROM $table WHERE $chanId = ? AND $myBalance < ? AND $uploaded = 0 ORDER BY $myBalance ASC LIMIT 200"
+  val newSql =
+    s"INSERT INTO $table ($txId, $chanId, $myBalance, $info, $uploaded) VALUES (?, ?, ?, ?, 0)"
   val setUploadedSql = s"UPDATE $table SET $uploaded = 1 WHERE $txId = ?"
   val selectTxIdSql = s"SELECT * FROM $table WHERE $txId = ?"
   val killSql = s"DELETE FROM $table WHERE $chanId = ?"
@@ -151,23 +174,27 @@ object RevokedInfoTable extends Table {
 
 trait Table { val (id, fts) = "_id" -> "fts4" }
 class LNOpenHelper(context: Context, name: String)
-  extends SQLiteOpenHelper(context, name, null, 7) {
+    extends SQLiteOpenHelper(context, name, null, 7) {
 
   val base = getWritableDatabase
   val asString: Any => String = {
     case alreadyString: String => alreadyString
-    case byteVec: ByteVector => byteVec.toHex
-    case otherwise => otherwise.toString
+    case byteVec: ByteVector   => byteVec.toHex
+    case otherwise             => otherwise.toString
   }
 
-  def change(sql: String, params: Any*) = base.execSQL(sql, params.map(asString).toArray)
-  def select(sql: String, params: Any*) = base.rawQuery(sql, params.map(asString).toArray)
-  def sqlPath(tbl: String) = Uri parse s"sqlite://com.lightning.walletapp/table/$tbl"
+  def change(sql: String, params: Any*) =
+    base.execSQL(sql, params.map(asString).toArray)
+  def select(sql: String, params: Any*) =
+    base.rawQuery(sql, params.map(asString).toArray)
+  def sqlPath(tbl: String) =
+    Uri parse s"sqlite://com.lightning.walletapp/table/$tbl"
 
-  def txWrap(run: => Unit) = try {
-    runAnd(base.beginTransaction)(run)
-    base.setTransactionSuccessful
-  } finally base.endTransaction
+  def txWrap(run: => Unit) =
+    try {
+      runAnd(base.beginTransaction)(run)
+      base.setTransactionSuccessful
+    } finally base.endTransaction
 
   def onCreate(dbs: SQLiteDatabase) = {
     dbs execSQL RevokedInfoTable.createSql
@@ -182,9 +209,27 @@ class LNOpenHelper(context: Context, name: String)
 
     // Randomize an order of two available default servers
     val (ord1, ord2) = if (random.nextBoolean) ("0", "1") else ("1", "0")
-    val emptyData = CloudData(info = None, tokens = Vector.empty, acts = Vector.empty).toJson.toString
-    val dev1: Array[AnyRef] = Array("server-1", "https://a.lightning-wallet.com:9103", emptyData, "1", ord1, "0")
-    val dev2: Array[AnyRef] = Array("server-2", "https://b.lightning-wallet.com:9103", emptyData, "0", ord2, "1")
+    val emptyData = CloudData(
+      info = None,
+      tokens = Vector.empty,
+      acts = Vector.empty
+    ).toJson.toString
+    val dev1: Array[AnyRef] = Array(
+      "server-1",
+      "https://a.lightning-wallet.com:9103",
+      emptyData,
+      "1",
+      ord1,
+      "0"
+    )
+    val dev2: Array[AnyRef] = Array(
+      "server-2",
+      "https://b.lightning-wallet.com:9103",
+      emptyData,
+      "0",
+      ord2,
+      "1"
+    )
     dbs.execSQL(OlympusTable.newSql, dev1)
     dbs.execSQL(OlympusTable.newSql, dev2)
   }

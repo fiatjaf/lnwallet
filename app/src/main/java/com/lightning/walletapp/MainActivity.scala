@@ -17,7 +17,6 @@ import org.ndeftools.Message
 import android.os.Bundle
 import android.view.View
 
-
 object MainActivity {
   var proceedOnSuccess: Runnable = _
   var actOnError: PartialFunction[Throwable, Unit] = _
@@ -28,42 +27,58 @@ object MainActivity {
     val proto = WalletProtobufSerializer parseToProto stream
 
     app.kit = new app.WalletKit {
-      wallet = (new WalletProtobufSerializer).readWallet(app.params, null, proto)
+      wallet =
+        (new WalletProtobufSerializer).readWallet(app.params, null, proto)
       store = new org.bitcoinj.store.SPVBlockStore(app.params, app.chainFile)
       blockChain = new BlockChain(app.params, wallet, store)
       peerGroup = new PeerGroup(app.params, blockChain)
 
-      def startUp = try {
-        setupAndStartDownload
-        proceedOnSuccess.run
-      } catch actOnError
+      def startUp =
+        try {
+          setupAndStartDownload
+          proceedOnSuccess.run
+        } catch actOnError
     }
   }
 }
 
 class MainActivity extends NfcReaderActivity with TimerActivity { me =>
-  lazy val mainFingerprintImage = findViewById(R.id.mainFingerprintImage).asInstanceOf[ImageView]
-  lazy val mainFingerprint = findViewById(R.id.mainFingerprint).asInstanceOf[View]
+  lazy val mainFingerprintImage = findViewById(R.id.mainFingerprintImage)
+    .asInstanceOf[ImageView]
+  lazy val mainFingerprint = findViewById(R.id.mainFingerprint)
+    .asInstanceOf[View]
   lazy val mainChoice = findViewById(R.id.mainChoice).asInstanceOf[View]
   lazy val gf = new Goldfinger.Builder(me).build
 
   def INIT(state: Bundle) = {
     runAnd(me setContentView R.layout.activity_main)(me initNfc state)
-    MainActivity.proceedOnSuccess = UITask { if (FingerPrint isOperational gf) proceedWithAuth else me exitTo MainActivity.wallet }
-    MainActivity.actOnError = { case reThrowToEnterEmergencyActivity => UITask { throw reThrowToEnterEmergencyActivity }.run }
+    MainActivity.proceedOnSuccess = UITask {
+      if (FingerPrint isOperational gf) proceedWithAuth
+      else me exitTo MainActivity.wallet
+    }
+    MainActivity.actOnError = {
+      case reThrowToEnterEmergencyActivity =>
+        UITask { throw reThrowToEnterEmergencyActivity }.run
+    }
     Utils clickableTextField findViewById(R.id.mainGreetings)
   }
 
   // NFC AND SHARE
 
-  private[this] def readFail(readingError: Throwable) = runAnd(app quickToast err_nothing_useful)(next)
-  def readNdefMessage(msg: Message) = <(app.TransData recordValue ndefMessageString(msg), readFail)(_ => next)
+  private[this] def readFail(readingError: Throwable) =
+    runAnd(app quickToast err_nothing_useful)(next)
+  def readNdefMessage(msg: Message) =
+    <(app.TransData recordValue ndefMessageString(msg), readFail)(_ => next)
 
   override def onNoNfcIntentFound = {
     val processIntent = (getIntent.getFlags & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0
-    val dataOpt = Seq(getIntent.getDataString, getIntent getStringExtra Intent.EXTRA_TEXT).find(externalData => null != externalData)
-    if (processIntent && getIntent.getAction == "android.intent.action.RECEIVE") runAnd(app.TransData.value = FragWallet.OPEN_RECEIVE_MENU)(next)
-    else if (processIntent) <(dataOpt foreach app.TransData.recordValue, readFail)(_ => next)
+    val dataOpt =
+      Seq(getIntent.getDataString, getIntent getStringExtra Intent.EXTRA_TEXT)
+        .find(externalData => null != externalData)
+    if (processIntent && getIntent.getAction == "android.intent.action.RECEIVE")
+      runAnd(app.TransData.value = FragWallet.OPEN_RECEIVE_MENU)(next)
+    else if (processIntent)
+      <(dataOpt foreach app.TransData.recordValue, readFail)(_ => next)
     else next
   }
 
@@ -80,19 +95,19 @@ class MainActivity extends NfcReaderActivity with TimerActivity { me =>
     gf authenticate new Goldfinger.Callback {
       mainFingerprint setVisibility View.VISIBLE
       def onError(fpError: FPError) = fpError match {
-        case FPError.LOCKOUT => mainFingerprintImage.setAlpha(0.25F)
-        case FPError.CANCELED => mainFingerprintImage.setAlpha(0.25F)
-        case _ => app quickToast fpError.toString
+        case FPError.LOCKOUT  => mainFingerprintImage.setAlpha(0.25f)
+        case FPError.CANCELED => mainFingerprintImage.setAlpha(0.25f)
+        case _                => app quickToast fpError.toString
       }
 
       def onSuccess(cipherText: String) = {
         mainFingerprint setVisibility View.GONE
         me exitTo MainActivity.wallet
       }
-  }
+    }
 
   def next = (app.walletFile.exists, app.isAlive) match {
-    case (false, _) => mainChoice setVisibility View.VISIBLE
+    case (false, _)   => mainChoice setVisibility View.VISIBLE
     case (true, true) => MainActivity.proceedOnSuccess.run
 
     case (true, false) =>

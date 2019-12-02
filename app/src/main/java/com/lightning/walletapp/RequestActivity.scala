@@ -24,7 +24,6 @@ import android.text.{StaticLayout, TextPaint}
 import android.content.{ClipData, Intent}
 import java.io.{File, FileOutputStream}
 
-
 object QRGen {
   val writer = new QRCodeWriter
   val hints = new java.util.Hashtable[EncodeHintType, Any]
@@ -32,14 +31,17 @@ object QRGen {
   hints.put(EncodeHintType.MARGIN, 1)
 
   def get(data: String, size: Int): Bitmap = {
-    val bitMatrix = writer.encode(data, BarcodeFormat.QR_CODE, size, size, hints)
+    val bitMatrix =
+      writer.encode(data, BarcodeFormat.QR_CODE, size, size, hints)
     val wid \ height = Tuple2(bitMatrix.getWidth, bitMatrix.getHeight)
     val pixels = new Array[Int](wid * height)
 
-    for (y <- 0 until height) for (x <- 0 until wid)
-      pixels(y * wid + x) = bitMatrix.get(x, y) match {
-        case true => Color.BLACK case false => Color.WHITE
-      }
+    for (y <- 0 until height)
+      for (x <- 0 until wid)
+        pixels(y * wid + x) = bitMatrix.get(x, y) match {
+          case true  => Color.BLACK
+          case false => Color.WHITE
+        }
 
     val qrBitmap = createBitmap(wid, height, ARGB_8888)
     qrBitmap.setPixels(pixels, 0, wid, 0, 0, wid, height)
@@ -48,8 +50,10 @@ object QRGen {
 }
 
 class RequestActivity extends TimerActivity { me =>
-  lazy val reqContainer = findViewById(R.id.reqContainer).asInstanceOf[LinearLayout]
-  lazy val reqFulfilled = findViewById(R.id.reqFulfilled).asInstanceOf[LinearLayout]
+  lazy val reqContainer = findViewById(R.id.reqContainer)
+    .asInstanceOf[LinearLayout]
+  lazy val reqFulfilled = findViewById(R.id.reqFulfilled)
+    .asInstanceOf[LinearLayout]
   lazy val reqCode = findViewById(R.id.reqCode).asInstanceOf[ImageView]
   lazy val share = findViewById(R.id.share).asInstanceOf[ImageButton]
 
@@ -61,41 +65,53 @@ class RequestActivity extends TimerActivity { me =>
   var whenDestroy: Runnable = new Runnable { def run = none }
   override def onDestroy = wrap(super.onDestroy)(whenDestroy.run)
 
-  def INIT(state: Bundle) = if (app.isAlive) {
-    setContentView(R.layout.activity_qr_request)
-    // Snapshot hash here, data will be erased soon
-    val targetHash = app.TransData.value match {
-      case pr: PaymentRequest => pr.paymentHash
-      case _ => ByteVector.empty
-    }
+  def INIT(state: Bundle) =
+    if (app.isAlive) {
+      setContentView(R.layout.activity_qr_request)
+      // Snapshot hash here, data will be erased soon
+      val targetHash = app.TransData.value match {
+        case pr: PaymentRequest => pr.paymentHash
+        case _                  => ByteVector.empty
+      }
 
-    val receivedListener = new ChannelListener {
-      override def onSettled(cs: Commitments) = for {
-        updateAddHtlc <- cs.localSpec.fulfilledIncoming
-        if updateAddHtlc.paymentHash == targetHash
-      } showPaid.run
-    }
+      val receivedListener = new ChannelListener {
+        override def onSettled(cs: Commitments) =
+          for {
+            updateAddHtlc <- cs.localSpec.fulfilledIncoming
+            if updateAddHtlc.paymentHash == targetHash
+          } showPaid.run
+      }
 
-    app.TransData checkAndMaybeErase {
-      case pr: PaymentRequest => showInfo(drawAll(denom.asString(pr.amount.get), getString(ln_qr_disposable).html), PaymentRequest write pr)
-      case onChainAddress: Address => showInfo(drawBottom(Utils humanSix onChainAddress.toString), onChainAddress.toString)
-      case _ => finish
-    }
+      app.TransData checkAndMaybeErase {
+        case pr: PaymentRequest =>
+          showInfo(
+            drawAll(
+              denom.asString(pr.amount.get),
+              getString(ln_qr_disposable).html
+            ),
+            PaymentRequest write pr
+          )
+        case onChainAddress: Address =>
+          showInfo(
+            drawBottom(Utils humanSix onChainAddress.toString),
+            onChainAddress.toString
+          )
+        case _ => finish
+      }
 
-    whenDestroy = UITask(ChannelManager detachListener receivedListener)
-    ChannelManager attachListener receivedListener
-  } else me exitTo classOf[MainActivity]
+      whenDestroy = UITask(ChannelManager detachListener receivedListener)
+      ChannelManager attachListener receivedListener
+    } else me exitTo classOf[MainActivity]
 
   def showPaid = UITask {
     TransitionManager beginDelayedTransition reqContainer
-    reqCode  setOnClickListener onButtonTap(none)
+    reqCode setOnClickListener onButtonTap(none)
     reqFulfilled setVisibility View.VISIBLE
     share setVisibility View.GONE
   }
 
   def showInfo(render: Bitmap => Bitmap, bech32: String) =
     <(QRGen.get(bech32.toUpperCase, qrSize), onFail) { bitmap =>
-
       val finalBitmap = render(bitmap)
       share setOnClickListener onButtonTap {
         <(shareData(finalBitmap, bech32), onFail)(none)
@@ -137,7 +153,8 @@ class RequestActivity extends TimerActivity { me =>
   }
 
   def text(canvas: Canvas, text: CharSequence, x: Float, baseY: Float) = {
-    val layout = new StaticLayout(text, paint, textBounds, ALIGN_NORMAL, 1f, 0f, false)
+    val layout =
+      new StaticLayout(text, paint, textBounds, ALIGN_NORMAL, 1f, 0f, false)
     val y = baseY - layout.getHeight / 2f
 
     canvas.save
@@ -164,9 +181,13 @@ class RequestActivity extends TimerActivity { me =>
     out.close
 
     val savedFile = new File(paymentRequestFilePath, "qr.png")
-    val fileURI = FileProvider.getUriForFile(me, "com.lightning.walletapp", savedFile)
+    val fileURI =
+      FileProvider.getUriForFile(me, "com.lightning.walletapp", savedFile)
     val share = new Intent setAction Intent.ACTION_SEND setType "text/plain" addFlags Intent.FLAG_GRANT_READ_URI_PERMISSION
-    share.putExtra(Intent.EXTRA_TEXT, bech32).putExtra(Intent.EXTRA_STREAM, fileURI).setDataAndType(fileURI, getContentResolver getType fileURI)
+    share
+      .putExtra(Intent.EXTRA_TEXT, bech32)
+      .putExtra(Intent.EXTRA_STREAM, fileURI)
+      .setDataAndType(fileURI, getContentResolver getType fileURI)
     me startActivity Intent.createChooser(share, "Choose an app")
   }
 }

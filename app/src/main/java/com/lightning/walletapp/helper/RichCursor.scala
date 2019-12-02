@@ -6,11 +6,16 @@ import android.content.Context
 import android.database.Cursor
 import scala.util.Try
 
-
 case class RichCursor(c: Cursor) extends Iterable[RichCursor] { me =>
-  def set[T](trans: RichCursor => T) = try map(trans).toSet finally c.close
-  def vec[T](trans: RichCursor => T) = try map(trans).toVector finally c.close
-  def headTry[T](fun: RichCursor => T) = try Try(fun apply head) finally c.close
+  def set[T](trans: RichCursor => T) =
+    try map(trans).toSet
+    finally c.close
+  def vec[T](trans: RichCursor => T) =
+    try map(trans).toVector
+    finally c.close
+  def headTry[T](fun: RichCursor => T) =
+    try Try(fun apply head)
+    finally c.close
   def string(stringKey: String) = c.getString(c getColumnIndex stringKey)
   def long(longKey: String) = c.getLong(c getColumnIndex longKey)
   def int(intKey: String) = c.getInt(c getColumnIndex intKey)
@@ -22,8 +27,8 @@ case class RichCursor(c: Cursor) extends Iterable[RichCursor] { me =>
 }
 
 // Loading data with side effect
-abstract class ReactLoader[T](ct: Context)
-extends AsyncTaskLoader[Cursor](ct) { me =>
+abstract class ReactLoader[T](ct: Context) extends AsyncTaskLoader[Cursor](ct) {
+  me =>
 
   def loadInBackground = {
     val cursor: Cursor = me.getCursor

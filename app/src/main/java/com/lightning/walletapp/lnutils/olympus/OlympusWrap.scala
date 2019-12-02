@@ -20,10 +20,13 @@ import com.lightning.walletapp.ln.PaymentRequest
 import com.lightning.walletapp.helper.RichCursor
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import com.lightning.walletapp.ln.RoutingInfoTag.PaymentRouteVec
-import com.lightning.walletapp.lnutils.{OlympusLogTable, OlympusTable, RevokedInfoTable}
+import com.lightning.walletapp.lnutils.{
+  OlympusLogTable,
+  OlympusTable,
+  RevokedInfoTable
+}
 import com.lightning.walletapp.ln.wire.{NodeAnnouncement, OutRequest}
 import rx.lang.scala.{Observable => Obs}
-
 
 object OlympusWrap {
   type RequestAndMemo = (PaymentRequest, BlindMemo)
@@ -65,24 +68,47 @@ class OlympusWrap extends OlympusProvider {
   // backup upload requests are also sent to all the clounds
   // and final filtering is done inside of each available cloud
   var clouds = RichCursor(db select OlympusTable.selectAllSql) vec toCloud
-  def tellClouds(candidateData: Any) = for (cloud <- clouds) cloud doProcess candidateData
-  def pendingWatchTxIds = clouds.flatMap(_.data.acts) collect { case ca: CerberusAct => ca.txids } flatten
+  def tellClouds(candidateData: Any) =
+    for (cloud <- clouds) cloud doProcess candidateData
+  def pendingWatchTxIds =
+    clouds.flatMap(_.data.acts) collect { case ca: CerberusAct => ca.txids } flatten
 
   // SQL interface
 
   def remove(identifier: String) = db.change(OlympusTable.killSql, identifier)
-  def updData(data: String, identifier: String) = db.change(OlympusTable.updDataSql, data, identifier)
-  def updMeta(cd: Cloud, order: Int) = db.change(OlympusTable.updMetaSql, cd.connector.url, cd.auth, order, cd.identifier)
+  def updData(data: String, identifier: String) =
+    db.change(OlympusTable.updDataSql, data, identifier)
+  def updMeta(cd: Cloud, order: Int) =
+    db.change(
+      OlympusTable.updMetaSql,
+      cd.connector.url,
+      cd.auth,
+      order,
+      cd.identifier
+    )
 
   def addServer(cloud: Cloud, order: Int) =
-    db.change(OlympusTable.newSql, cloud.identifier, cloud.connector.url,
-      cloud.data.toJson.toString, cloud.auth, order, cloud.removable)
+    db.change(
+      OlympusTable.newSql,
+      cloud.identifier,
+      cloud.connector.url,
+      cloud.data.toJson.toString,
+      cloud.auth,
+      order,
+      cloud.removable
+    )
 
   // Olympus RPC interface
 
-  def failOver[T](run: Cloud => Obs[T], onRunOut: Obs[T], cs: CloudVec): Obs[T] = {
-    def tryAgainWithNextCloud(failure: Throwable) = failOver(run, onRunOut, cs.tail)
-    if (cs.isEmpty) onRunOut else run(cs.head) onErrorResumeNext tryAgainWithNextCloud
+  def failOver[T](
+      run: Cloud => Obs[T],
+      onRunOut: Obs[T],
+      cs: CloudVec
+  ): Obs[T] = {
+    def tryAgainWithNextCloud(failure: Throwable) =
+      failOver(run, onRunOut, cs.tail)
+    if (cs.isEmpty) onRunOut
+    else run(cs.head) onErrorResumeNext tryAgainWithNextCloud
   }
 
   def getBackup(key: ByteVector) = {
@@ -91,10 +117,24 @@ class OlympusWrap extends OlympusProvider {
     Obs.from(clouds).flatMap(_.connector getBackup key onErrorReturn empty)
   }
 
-  def findNodes(query: String) = failOver(_.connector findNodes query, Obs.empty, clouds)
-  def findRoutes(out: OutRequest) = failOver(_.connector findRoutes out, Obs just Vector.empty, clouds)
-  def getRates = failOver(_.connector.getRates, Obs error new ProtocolException("Could not obtain feerates and fiat prices"), clouds)
-  def getChildTxs(ids: ByteVecSeq) = failOver(_.connector getChildTxs ids, Obs error new ProtocolException("Try again later"), clouds)
+  def findNodes(query: String) =
+    failOver(_.connector findNodes query, Obs.empty, clouds)
+  def findRoutes(out: OutRequest) =
+    failOver(_.connector findRoutes out, Obs just Vector.empty, clouds)
+  def getRates =
+    failOver(
+      _.connector.getRates,
+      Obs error new ProtocolException(
+        "Could not obtain feerates and fiat prices"
+      ),
+      clouds
+    )
+  def getChildTxs(ids: ByteVecSeq) =
+    failOver(
+      _.connector getChildTxs ids,
+      Obs error new ProtocolException("Try again later"),
+      clouds
+    )
 }
 
 trait OlympusProvider {
@@ -107,18 +147,30 @@ trait OlympusProvider {
 
 class Connector(val url: String) extends OlympusProvider {
   def ask[T: JsonFormat](commandPath: String, parameters: HttpParam*): Obs[T] =
-    queue.map(_ => http(commandPath).form(parameters.toMap.asJava).body.parseJson) map {
-      case JsArray(JsString("error") +: JsString(why) +: _) => throw new ProtocolException(why)
+    queue.map(
+      _ => http(commandPath).form(parameters.toMap.asJava).body.parseJson
+    ) map {
+      case JsArray(JsString("error") +: JsString(why) +: _) =>
+        throw new ProtocolException(why)
       case JsArray(JsString("ok") +: response +: _) => response.convertTo[T]
-      case _ => throw new ProtocolException
+      case _                                        => throw new ProtocolException
     }
 
   def getRates = ask[Result]("rates/get")
-  def getBackup(key: ByteVector) = ask[StringVec]("data/get", "key" -> key.toHex)
-  def findNodes(query: String) = ask[AnnounceChansNumVec]("router/nodes", "query" -> query)
-  def getChildTxs(txIds: ByteVecSeq) = ask[TxSeq]("txs/get", "txids" -> txIds.toJson.toString.s2hex)
-  def findRoutes(out: OutRequest) = ask[PaymentRouteVec]("router/routesplus", "params" -> out.toJson.toString.s2hex)
-  def http(requestPath: String) = post(s"$url/$requestPath", true).trustAllCerts.trustAllHosts.connectTimeout(15000)
+  def getBackup(key: ByteVector) =
+    ask[StringVec]("data/get", "key" -> key.toHex)
+  def findNodes(query: String) =
+    ask[AnnounceChansNumVec]("router/nodes", "query" -> query)
+  def getChildTxs(txIds: ByteVecSeq) =
+    ask[TxSeq]("txs/get", "txids" -> txIds.toJson.toString.s2hex)
+  def findRoutes(out: OutRequest) =
+    ask[PaymentRouteVec](
+      "router/routesplus",
+      "params" -> out.toJson.toString.s2hex
+    )
+  def http(requestPath: String) =
+    post(s"$url/$requestPath", true).trustAllCerts.trustAllHosts
+      .connectTimeout(15000)
 }
 
 // CLOUD UPLOAD ACTS
@@ -130,24 +182,57 @@ trait CloudAct {
   val path: String
 }
 
-case class CloudData(info: Option[RequestAndMemo], tokens: Vector[ClearToken], acts: CloudActVec)
-case class LegacyAct(data: ByteVector, plus: Seq[HttpParam], path: String) extends CloudAct { def onDone = none }
-case class CerberusAct(data: ByteVector, plus: Seq[HttpParam], path: String, txids: StringVec) extends CloudAct {
+case class CloudData(
+    info: Option[RequestAndMemo],
+    tokens: Vector[ClearToken],
+    acts: CloudActVec
+)
+case class LegacyAct(data: ByteVector, plus: Seq[HttpParam], path: String)
+    extends CloudAct { def onDone = none }
+case class CerberusAct(
+    data: ByteVector,
+    plus: Seq[HttpParam],
+    path: String,
+    txids: StringVec
+) extends CloudAct {
   // This is an act for uploading a pack of RevocationInfo objects, affected records should be marked once uploaded
 
   def onDone = db txWrap {
     val text = app.getString(olympus_log_watch_payments).format(txids.size)
     for (oldTxid <- txids) db.change(RevokedInfoTable.setUploadedSql, oldTxid)
-    db.change(OlympusLogTable.newSql, params = 1, text, System.currentTimeMillis)
+    db.change(
+      OlympusLogTable.newSql,
+      params = 1,
+      text,
+      System.currentTimeMillis
+    )
   }
 }
 
-case class TxUploadAct(data: ByteVector, plus: Seq[HttpParam], path: String) extends CloudAct {
+case class TxUploadAct(data: ByteVector, plus: Seq[HttpParam], path: String)
+    extends CloudAct {
   // This is an act for uploading refunding transactions immediately when channel gets closed uncooperatively
-  def onDone = db.change(OlympusLogTable.newSql, 1, app.getString(olympus_log_refunding_tx), System.currentTimeMillis)
+  def onDone =
+    db.change(
+      OlympusLogTable.newSql,
+      1,
+      app.getString(olympus_log_refunding_tx),
+      System.currentTimeMillis
+    )
 }
 
-case class ChannelUploadAct(data: ByteVector, plus: Seq[HttpParam], path: String, alias: String) extends CloudAct {
+case class ChannelUploadAct(
+    data: ByteVector,
+    plus: Seq[HttpParam],
+    path: String,
+    alias: String
+) extends CloudAct {
   // This is an act for uploading a channel encrypted backup immediately once a transaction for a new channel gets broadcasted
-  def onDone = db.change(OlympusLogTable.newSql, 1, app.getString(olympus_log_channel_backup).format(alias), System.currentTimeMillis)
+  def onDone =
+    db.change(
+      OlympusLogTable.newSql,
+      1,
+      app.getString(olympus_log_channel_backup).format(alias),
+      System.currentTimeMillis
+    )
 }

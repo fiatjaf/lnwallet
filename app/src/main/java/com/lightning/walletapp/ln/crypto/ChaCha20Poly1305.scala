@@ -9,26 +9,61 @@ import fr.acinq.bitcoin.Protocol.writeUInt64Array
 import com.lightning.walletapp.ln.Tools.Bytes
 import java.nio.ByteOrder.LITTLE_ENDIAN
 
-
 object ChaCha20Poly1305 {
-  def encrypt(key: Bytes, nonce: Bytes, plaintext: Bytes, aad: Bytes): (Bytes, Bytes) = {
-    val polykey = ChaCha20.process(new Bytes(32), key, nonce, encrypt = true, skipBlock = false)
-    val ciphertext = ChaCha20.process(plaintext, key, nonce, encrypt = true, skipBlock = true)
+  def encrypt(
+      key: Bytes,
+      nonce: Bytes,
+      plaintext: Bytes,
+      aad: Bytes
+  ): (Bytes, Bytes) = {
+    val polykey = ChaCha20.process(
+      new Bytes(32),
+      key,
+      nonce,
+      encrypt = true,
+      skipBlock = false
+    )
+    val ciphertext =
+      ChaCha20.process(plaintext, key, nonce, encrypt = true, skipBlock = true)
     ciphertext -> Poly1305.mac(data = pack(aad, ciphertext), key = polykey)
   }
 
-  def decrypt(key: Bytes, nonce: Bytes, ciphertext: Bytes, aad: Bytes, mac: Bytes): Bytes = {
-    val polykey = ChaCha20.process(new Bytes(32), key, nonce, encrypt = true, skipBlock = false)
+  def decrypt(
+      key: Bytes,
+      nonce: Bytes,
+      ciphertext: Bytes,
+      aad: Bytes,
+      mac: Bytes
+  ): Bytes = {
+    val polykey = ChaCha20.process(
+      new Bytes(32),
+      key,
+      nonce,
+      encrypt = true,
+      skipBlock = false
+    )
     val same = Poly1305.mac(data = pack(aad, ciphertext), key = polykey) sameElements mac
-    if (same) ChaCha20.process(ciphertext, key, nonce, encrypt = false, skipBlock = true)
+    if (same)
+      ChaCha20.process(
+        ciphertext,
+        key,
+        nonce,
+        encrypt = false,
+        skipBlock = true
+      )
     else throw new LightningException
   }
 
   def pack(aad: Bytes, txt: Bytes) =
-    aconcat(aad, pad16(aad), txt, pad16(txt),
+    aconcat(
+      aad,
+      pad16(aad),
+      txt,
+      pad16(txt),
       writeUInt64Array(aad.length, LITTLE_ENDIAN),
       writeUInt64Array(txt.length, LITTLE_ENDIAN),
-      Array.emptyByteArray)
+      Array.emptyByteArray
+    )
 
   def pad16(data: Bytes): Bytes =
     if (data.length % 16 == 0) Array.empty
@@ -37,8 +72,13 @@ object ChaCha20Poly1305 {
 
 trait SkippingStreamCipherEngine {
   def getEngine: SkippingStreamCipher
-  def process(data: Bytes, key: Bytes, nonce: Bytes,
-              encrypt: Boolean, skipBlock: Boolean) = {
+  def process(
+      data: Bytes,
+      key: Bytes,
+      nonce: Bytes,
+      encrypt: Boolean,
+      skipBlock: Boolean
+  ) = {
 
     val engine = getEngine
     val parameter = new KeyParameter(key)

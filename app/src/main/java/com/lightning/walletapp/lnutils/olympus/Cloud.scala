@@ -13,10 +13,14 @@ import com.lightning.walletapp.Utils.app
 import org.bitcoinj.core.Utils.HEX
 import org.bitcoinj.core.ECKey
 
-
 // Uses special paid tokens to store data on server, is constructed directly from a database
-class Cloud(val identifier: String, var connector: Connector, var auth: Int, val removable: Int,
-            val maxMsat: Long = 5000000L) extends StateMachine[CloudData] { me =>
+class Cloud(
+    val identifier: String,
+    var connector: Connector,
+    var auth: Int,
+    val removable: Int,
+    val maxMsat: Long = 5000000L
+) extends StateMachine[CloudData] { me =>
 
   private var isFree = true
   def BECOME(cloudData: CloudData) = {
@@ -27,13 +31,17 @@ class Cloud(val identifier: String, var connector: Connector, var auth: Int, val
 
   def doProcess(some: Any) = (data, some) match {
     // We do not have memo or tokens but there are pending actions
-    case CloudData(None, clearTokens, actions) \ CMDStart if isFree &&
-      ChannelManager.mostFundedChanOpt.exists(_.estCanSendMsat >= maxMsat) &&
-      clearTokens.isEmpty && actions.nonEmpty && isAuthEnabled =>
-
+    case CloudData(None, clearTokens, actions) \ CMDStart
+        if isFree &&
+          ChannelManager.mostFundedChanOpt
+            .exists(_.estCanSendMsat >= maxMsat) &&
+          clearTokens.isEmpty && actions.nonEmpty && isAuthEnabled =>
       // Also executes if we have no actions to upload and a few tokens left
-      val send = retry(getPaymentRequestBlindMemo, pick = pickInc, times = 4 to 5)
-      val send1 = send doOnSubscribe { isFree = false } doOnTerminate { isFree = true }
+      val send =
+        retry(getPaymentRequestBlindMemo, pick = pickInc, times = 4 to 5)
+      val send1 = send doOnSubscribe { isFree = false } doOnTerminate {
+        isFree = true
+      }
 
       for {
         pr \ memo <- send1
@@ -42,15 +50,28 @@ class Cloud(val identifier: String, var connector: Connector, var auth: Int, val
       } retryFreshRequest(pr)
 
     // Execute anyway if we are free and have available tokens and actions
-    case CloudData(_, (point, clear, signature) +: ts, action +: _) \ CMDStart if isFree =>
-      val params = Seq("point" -> point, "cleartoken" -> clear, "clearsig" -> signature, BODY -> action.data.toHex)
-      val send = connector.ask[String](action.path, params ++ action.plus:_*) doOnSubscribe { isFree = false } doOnTerminate { isFree = true }
+    case CloudData(_, (point, clear, signature) +: ts, action +: _) \ CMDStart
+        if isFree =>
+      val params = Seq(
+        "point" -> point,
+        "cleartoken" -> clear,
+        "clearsig" -> signature,
+        BODY -> action.data.toHex
+      )
+      val send = connector
+        .ask[String](action.path, params ++ action.plus: _*) doOnSubscribe {
+        isFree = false
+      } doOnTerminate { isFree = true }
       // Be careful here: must make sure `doOnTerminate` sets `isFree` to true before `doOnCompleted` sends `CMDStart` so we can react again
-      send.doOnCompleted(me doProcess CMDStart).foreach(onGotResponse, onGotResponse)
+      send
+        .doOnCompleted(me doProcess CMDStart)
+        .foreach(onGotResponse, onGotResponse)
 
       def onGotResponse(response: Any) = response match {
-        case err: Throwable if err.getMessage == "tokeninvalid" => me BECOME data.copy(tokens = ts)
-        case err: Throwable if err.getMessage == "tokenused" => me BECOME data.copy(tokens = ts)
+        case err: Throwable if err.getMessage == "tokeninvalid" =>
+          me BECOME data.copy(tokens = ts)
+        case err: Throwable if err.getMessage == "tokenused" =>
+          me BECOME data.copy(tokens = ts)
 
         case "done" =>
           val acts1 = data.acts diff Vector(action)
@@ -67,20 +88,32 @@ class Cloud(val identifier: String, var connector: Connector, var auth: Int, val
 
       if (!isInFlight) {
         // Assume that payment has been fulfilled and try to obtain storage tokens
-        val send = connector.ask[BigIntegerVec]("blindtokens/redeem", "seskey" -> memo.key)
-        val sendRelease = send doOnSubscribe { isFree = false } doOnTerminate { isFree = true }
-        val sendConvert = sendRelease.map(memo.makeClearSigs).map(memo.packEverything).doOnCompleted(me doProcess CMDStart)
-        sendConvert.foreach(freshTokens => me BECOME data.copy(info = None, tokens = data.tokens ++ freshTokens), onError)
+        val send = connector
+          .ask[BigIntegerVec]("blindtokens/redeem", "seskey" -> memo.key)
+        val sendRelease = send doOnSubscribe { isFree = false } doOnTerminate {
+          isFree = true
+        }
+        val sendConvert = sendRelease
+          .map(memo.makeClearSigs)
+          .map(memo.packEverything)
+          .doOnCompleted(me doProcess CMDStart)
+        sendConvert.foreach(
+          freshTokens =>
+            me BECOME data
+              .copy(info = None, tokens = data.tokens ++ freshTokens),
+          onError
+        )
       }
 
       def onError(err: Throwable) = err.getMessage match {
         case "notfulfilled" if pr.isFresh => retryFreshRequest(pr)
-        case "notfulfilled" => me BECOME data.copy(info = None)
-        case "notfound" => me BECOME data.copy(info = None)
-        case other => Tools log other
+        case "notfulfilled"               => me BECOME data.copy(info = None)
+        case "notfound"                   => me BECOME data.copy(info = None)
+        case other                        => Tools log other
       }
 
-    case (_, act: CloudAct) if 0 == removable || isAuthEnabled || data.tokens.nonEmpty =>
+    case (_, act: CloudAct)
+        if 0 == removable || isAuthEnabled || data.tokens.nonEmpty =>
       // Accept acts and just store them if this cloud is not removable OR auth is on OR tokens left
       // by doing this we can catch channel backups and upload them later if user re-enables tokens
       me BECOME data.copy(acts = data.acts :+ act take 25)
@@ -96,17 +129,30 @@ class Cloud(val identifier: String, var connector: Connector, var auth: Int, val
       case (signerMasterPubKey, signerSessionPubKey, quantity) =>
         val pubKeyQ = ECKey.fromPublicOnly(HEX decode signerMasterPubKey)
         val pubKeyR = ECKey.fromPublicOnly(HEX decode signerSessionPubKey)
-        val ecBlind = new ECBlind(pubKeyQ.getPubKeyPoint, pubKeyR.getPubKeyPoint)
+        val ecBlind =
+          new ECBlind(pubKeyQ.getPubKeyPoint, pubKeyR.getPubKeyPoint)
 
-        val memo = BlindMemo(ecBlind params quantity, ecBlind tokens quantity, pubKeyR.getPublicKeyAsHex)
-        connector.ask[String]("blindtokens/buy", "tokens" -> memo.makeBlindTokens.toJson.toString.s2hex,
-          "seskey" -> memo.key).map(PaymentRequest.read).map(pr => pr -> memo)
+        val memo = BlindMemo(
+          ecBlind params quantity,
+          ecBlind tokens quantity,
+          pubKeyR.getPublicKeyAsHex
+        )
+        connector
+          .ask[String](
+            "blindtokens/buy",
+            "tokens" -> memo.makeBlindTokens.toJson.toString.s2hex,
+            "seskey" -> memo.key
+          )
+          .map(PaymentRequest.read)
+          .map(pr => pr -> memo)
     }
 
   def isAuthEnabled = 1 == auth
   def retryFreshRequest(failedPr: PaymentRequest): Unit = {
-    val retryRD = app.emptyRD(failedPr, failedPr.msatOrMin.amount, useCache = true)
+    val retryRD =
+      app.emptyRD(failedPr, failedPr.msatOrMin.amount, useCache = true)
     // We do not care about options such as AIR or AMP here because price is supposed to be small
-    if (ChannelManager.checkIfSendable(retryRD).isRight) PaymentInfoWrap addPendingPayment retryRD
+    if (ChannelManager.checkIfSendable(retryRD).isRight)
+      PaymentInfoWrap addPendingPayment retryRD
   }
 }

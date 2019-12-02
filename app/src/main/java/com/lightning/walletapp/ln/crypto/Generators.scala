@@ -6,7 +6,6 @@ import fr.acinq.bitcoin.Crypto
 import ShaChain.largestTxIndex
 import scodec.bits.ByteVector
 
-
 object Generators {
   def perCommitSecret(seed: ByteVector, index: Long): Scalar = {
     val result = ShaChain.shaChainFromSeed(seed.toArray, largestTxIndex - index)
@@ -38,8 +37,14 @@ object Generators {
   }
 
   def revocationPrivKey(secret: Scalar, perCommitSecret: Scalar) = {
-    val a = secret multiply points2Scalar(secret.toPoint, perCommitSecret.toPoint)
-    val b = perCommitSecret multiply points2Scalar(perCommitSecret.toPoint, secret.toPoint)
+    val a = secret multiply points2Scalar(
+      secret.toPoint,
+      perCommitSecret.toPoint
+    )
+    val b = perCommitSecret multiply points2Scalar(
+      perCommitSecret.toPoint,
+      secret.toPoint
+    )
     PrivateKey(a add b)
   }
 }

@@ -6,15 +6,16 @@ import org.spongycastle.crypto.params.KeyParameter
 import org.spongycastle.crypto.macs.HMac
 import scodec.bits.ByteVector
 
-
 trait Mac32 {
   def mac(message: ByteVector): ByteVector
   def verify(mac: ByteVector, message: ByteVector): Boolean
 }
 
 case class Hmac256(key: ByteVector) extends Mac32 {
-  override def mac(message: ByteVector): ByteVector = Mac32.hmac256(key, message)
-  override def verify(mac1: ByteVector, message: ByteVector): Boolean = mac(message) == mac1
+  override def mac(message: ByteVector): ByteVector =
+    Mac32.hmac256(key, message)
+  override def verify(mac1: ByteVector, message: ByteVector): Boolean =
+    mac(message) == mac1
 }
 
 object Mac32 {

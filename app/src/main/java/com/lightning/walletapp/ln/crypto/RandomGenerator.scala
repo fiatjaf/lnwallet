@@ -5,7 +5,6 @@ import java.security.SecureRandom
 import com.google.common.io.ByteStreams
 import com.lightning.walletapp.ln.Tools.Bytes
 
-
 trait ByteStream { def getBytes(size: Int): Bytes }
 class RandomGenerator extends SecureRandom with ByteStream {
   def getBytes(size: Int) = {

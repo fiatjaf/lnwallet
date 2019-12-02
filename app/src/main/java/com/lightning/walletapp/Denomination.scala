@@ -12,7 +12,6 @@ import language.implicitConversions
 import org.bitcoinj.core.Coin
 import language.postfixOps
 
-
 object Denomination {
   val locale = new java.util.Locale("en", "US")
   val symbols = new DecimalFormatSymbols(locale)
@@ -21,19 +20,25 @@ object Denomination {
 
   // TODO: remove this hack once themed color can be appropriately fetched
   val mode = app.getResources.getConfiguration.uiMode & Configuration.UI_MODE_NIGHT_MASK
-  val yellowHighlight = if (mode == Configuration.UI_MODE_NIGHT_YES) 0xFF444133 else 0xFFFFFAE4
-  val reddish = if (mode == Configuration.UI_MODE_NIGHT_YES) "#E35646" else "#E31300"
+  val yellowHighlight =
+    if (mode == Configuration.UI_MODE_NIGHT_YES) 0xFF444133 else 0xFFFFFAE4
+  val reddish =
+    if (mode == Configuration.UI_MODE_NIGHT_YES) "#E35646" else "#E31300"
 
   val formatFiat = new DecimalFormat("#,###,###.##")
   formatFiat setDecimalFormatSymbols symbols
 
-  def btcBigDecimal2MSat(btc: BigDecimal) = MilliSatoshi(btc * BtcDenomination.factor toLong)
-  implicit def mSat2Coin(msat: MilliSatoshi): Coin = Coin.valueOf(msat.amount / 1000L)
-  implicit def coin2MSat(cn: Coin): MilliSatoshi = MilliSatoshi(cn.value * 1000L)
+  def btcBigDecimal2MSat(btc: BigDecimal) =
+    MilliSatoshi(btc * BtcDenomination.factor toLong)
+  implicit def mSat2Coin(msat: MilliSatoshi): Coin =
+    Coin.valueOf(msat.amount / 1000L)
+  implicit def coin2MSat(cn: Coin): MilliSatoshi =
+    MilliSatoshi(cn.value * 1000L)
 }
 
 trait Denomination { me =>
-  def rawString2MSat(raw: String) = MilliSatoshi(BigDecimal(raw) * factor toLong)
+  def rawString2MSat(raw: String) =
+    MilliSatoshi(BigDecimal(raw) * factor toLong)
   def asString(msat: MilliSatoshi) = fmt format BigDecimal(msat.amount) / factor
   def parsedWithSign(msat: MilliSatoshi) = parsed(msat) + sign
   protected def parsed(msat: MilliSatoshi): String
@@ -45,8 +50,10 @@ trait Denomination { me =>
     s"$start$content$end"
   }
 
-  def coloredOut(msat: MilliSatoshi, suffix: String) = s"<font color=$reddish><tt>-</tt>${me parsed msat}</font>$suffix"
-  def coloredIn(msat: MilliSatoshi, suffix: String) = s"<font color=#6AAB38><tt>+</tt>${me parsed msat}</font>$suffix"
+  def coloredOut(msat: MilliSatoshi, suffix: String) =
+    s"<font color=$reddish><tt>-</tt>${me parsed msat}</font>$suffix"
+  def coloredIn(msat: MilliSatoshi, suffix: String) =
+    s"<font color=#6AAB38><tt>+</tt>${me parsed msat}</font>$suffix"
 
   val amountInTxt: String
   val fmt: DecimalFormat

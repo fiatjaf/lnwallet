@@ -3,7 +3,6 @@ package com.lightning.walletapp.test
 import fr.acinq.eclair.crypto.BitStream
 import org.spongycastle.util.encoders.Hex
 
-
 class BitStreamSpec {
 
   def allTests = {

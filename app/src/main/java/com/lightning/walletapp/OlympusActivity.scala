@@ -22,7 +22,6 @@ import android.os.Bundle
 import android.net.Uri
 import java.util.Date
 
-
 class OlympusActivity extends TimerActivity with HumanTimeDisplay { me =>
   lazy val serverList = findViewById(R.id.serverList).asInstanceOf[RecyclerView]
   lazy val tokensLeft = getResources getStringArray R.array.olympus_tokens_left
@@ -30,17 +29,21 @@ class OlympusActivity extends TimerActivity with HumanTimeDisplay { me =>
 
   val adapter = new GestureAdapter[Cloud, GestureViewHolder] {
     override def onCreateViewHolder(parent: ViewGroup, viewType: Int) = {
-      val view = getLayoutInflater.inflate(R.layout.frag_line_double, parent, false)
+      val view =
+        getLayoutInflater.inflate(R.layout.frag_line_double, parent, false)
       new GestureViewHolder(view)
     }
 
     override def onBindViewHolder(holder: GestureViewHolder, pos: Int) = {
-      val olympusAddress = holder.itemView.findViewById(R.id.leftSideLine).asInstanceOf[TextView]
-      val olympusTokens = holder.itemView.findViewById(R.id.rightSideLine).asInstanceOf[TextView]
+      val olympusAddress =
+        holder.itemView.findViewById(R.id.leftSideLine).asInstanceOf[TextView]
+      val olympusTokens =
+        holder.itemView.findViewById(R.id.rightSideLine).asInstanceOf[TextView]
 
       val cloud = getItem(pos)
       val tokensLeftHuman = app.plur1OrZero(tokensLeft, cloud.data.tokens.size)
-      val finalTokensLeft = if (cloud.isAuthEnabled) tokensLeftHuman else tokensLeft.last
+      val finalTokensLeft =
+        if (cloud.isAuthEnabled) tokensLeftHuman else tokensLeft.last
       olympusAddress setText Uri.parse(cloud.connector.url).getHost
       olympusTokens setText finalTokensLeft.html
       holder.swipable = 1 == cloud.removable
@@ -62,7 +65,8 @@ class OlympusActivity extends TimerActivity with HumanTimeDisplay { me =>
 
     adapter setData app.olympus.clouds.asJava
     adapter setDataChangeListener new GestureAdapter.OnDataChangeListener[Cloud] {
-      override def onItemReorder(item: Cloud, fromPos: Int, targetPos: Int) = onUpdate
+      override def onItemReorder(item: Cloud, fromPos: Int, targetPos: Int) =
+        onUpdate
       override def onItemRemoved(item: Cloud, position: Int) = onUpdate
     }
 
@@ -72,24 +76,32 @@ class OlympusActivity extends TimerActivity with HumanTimeDisplay { me =>
     serverList addOnItemTouchListener new RecyclerItemTouchListener(onClick)
 
     new GestureManager.Builder(serverList)
-      .setSwipeEnabled(true).setLongPressDragEnabled(true)
+      .setSwipeEnabled(true)
+      .setLongPressDragEnabled(true)
       .setDragFlags(ItemTouchHelper.UP | ItemTouchHelper.DOWN)
-      .setSwipeFlags(ItemTouchHelper.LEFT).build
+      .setSwipeFlags(ItemTouchHelper.LEFT)
+      .build
   }
 
   def onUpdate = LNParams.db txWrap {
     val updated: Vector[Cloud] = adapter.getData.asScala.toVector
-    for (removed <- app.olympus.clouds diff updated) app.olympus.remove(removed.identifier)
-    for (cloud \ order <- updated.zipWithIndex) app.olympus.addServer(cloud, order)
-    for (cloud \ order <- updated.zipWithIndex) app.olympus.updMeta(cloud, order)
+    for (removed <- app.olympus.clouds diff updated)
+      app.olympus.remove(removed.identifier)
+    for (cloud \ order <- updated.zipWithIndex)
+      app.olympus.addServer(cloud, order)
+    for (cloud \ order <- updated.zipWithIndex)
+      app.olympus.updMeta(cloud, order)
     adapter.notifyDataSetChanged
     app.olympus.clouds = updated
   }
 
   def addNewCloud(url: String, auth: Int) = {
     val randomIdentity = ByteVector(random getBytes 16).toHex
-    val emptyData = CloudData(info = None, tokens = Vector.empty, acts = Vector.empty)
-    val cd = new Cloud(randomIdentity, new Connector(url), auth, 1) { data = emptyData }
+    val emptyData =
+      CloudData(info = None, tokens = Vector.empty, acts = Vector.empty)
+    val cd = new Cloud(randomIdentity, new Connector(url), auth, 1) {
+      data = emptyData
+    }
     if (adapter add cd) onUpdate
   }
 
@@ -102,8 +114,10 @@ class OlympusActivity extends TimerActivity with HumanTimeDisplay { me =>
   }
 
   override def onOptionsItemSelected(m: MenuItem) = {
-    if (m.getItemId == R.id.actionQuestionMark) browse("http://lightning-wallet.com/what-does-olympus-server-do")
-    else if (m.getItemId == R.id.actionAddEntity) new FormManager(addNewCloud, olympus_add)
+    if (m.getItemId == R.id.actionQuestionMark)
+      browse("http://lightning-wallet.com/what-does-olympus-server-do")
+    else if (m.getItemId == R.id.actionAddEntity)
+      new FormManager(addNewCloud, olympus_add)
     else if (m.getItemId == R.id.actionTokenLog) viewTokenUsageLog
     true
   }
@@ -114,11 +128,21 @@ class OlympusActivity extends TimerActivity with HumanTimeDisplay { me =>
   }
 
   class FormManager(next: (String, Int) => Unit, title: Int) {
-    val content = getLayoutInflater.inflate(R.layout.frag_olympus_details, null, false)
-    val serverHostPort = content.findViewById(R.id.serverHostPort).asInstanceOf[EditText]
-    val formatInputHint = content.findViewById(R.id.formatInputHint).asInstanceOf[TextView]
-    val serverBackupWatchtower = content.findViewById(R.id.serverBackup).asInstanceOf[CheckBox]
-    mkCheckForm(addAttempt, none, baseBuilder(getString(title), content), dialog_ok, dialog_cancel)
+    val content =
+      getLayoutInflater.inflate(R.layout.frag_olympus_details, null, false)
+    val serverHostPort =
+      content.findViewById(R.id.serverHostPort).asInstanceOf[EditText]
+    val formatInputHint =
+      content.findViewById(R.id.formatInputHint).asInstanceOf[TextView]
+    val serverBackupWatchtower =
+      content.findViewById(R.id.serverBackup).asInstanceOf[CheckBox]
+    mkCheckForm(
+      addAttempt,
+      none,
+      baseBuilder(getString(title), content),
+      dialog_ok,
+      dialog_cancel
+    )
     formatInputHint setText olympus_hint
 
     def set(c: Cloud) = {
@@ -135,13 +159,19 @@ class OlympusActivity extends TimerActivity with HumanTimeDisplay { me =>
   }
 
   def viewTokenUsageLog = {
-    val events = RichCursor(LNParams.db select OlympusLogTable.selectAllSql) vec { rc =>
-      val stamp = when(thenDate = new Date(rc long OlympusLogTable.stamp), now = System.currentTimeMillis)
-      s"<font color=#999999><strong>$stamp</strong></font> ${rc string OlympusLogTable.explanation}".html
+    val events = RichCursor(LNParams.db select OlympusLogTable.selectAllSql) vec {
+      rc =>
+        val stamp = when(
+          thenDate = new Date(rc long OlympusLogTable.stamp),
+          now = System.currentTimeMillis
+        )
+        s"<font color=#999999><strong>$stamp</strong></font> ${rc string OlympusLogTable.explanation}".html
     }
 
-    val adapter = new ArrayAdapter(me, android.R.layout.simple_list_item_1, events.toArray)
-    val bld = new AlertDialog.Builder(me).setCustomTitle(me getString olympus_log)
+    val adapter =
+      new ArrayAdapter(me, android.R.layout.simple_list_item_1, events.toArray)
+    val bld =
+      new AlertDialog.Builder(me).setCustomTitle(me getString olympus_log)
     bld.setAdapter(adapter, null).create.show
   }
 }

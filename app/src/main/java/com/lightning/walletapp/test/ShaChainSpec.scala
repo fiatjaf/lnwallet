@@ -5,7 +5,6 @@ import com.lightning.walletapp.ln.crypto.{ShaChain, ShaHashesWithIndex}
 import com.lightning.walletapp.ln.crypto.ShaChain.{largestIndex, Index}
 import org.bitcoinj.core.Utils.HEX
 
-
 class ShaChainSpec {
 
   def byteSeqsEqual(s1: Seq[Bytes], s2: Seq[Bytes]) =
@@ -61,21 +60,30 @@ class ShaChainSpec {
     "d621ad4edbe0db4502dbec1086afcf267ba7642320d9c2b8e0622da0c1ccf97d",
     "145c7f90baa79843dd78b1ad0c3671d974296ee910c56e935b1faa36230927db",
     "0c73aa6bd28175c4b6545501e8ce51492a98e53027b8137008359f6d750d2f38",
-    "01a10b1efc3071b46284fd9b79c16999d3d0dcad88fb17bdf3cbfaeb6251ecde")
-    .map(HEX.decode)
+    "01a10b1efc3071b46284fd9b79c16999d3d0dcad88fb17bdf3cbfaeb6251ecde"
+  ).map(HEX.decode)
 
-  val seed = HEX.decode("0000000000000000000000000000000000000000000000000000000000000000")
+  val seed = HEX.decode(
+    "0000000000000000000000000000000000000000000000000000000000000000"
+  )
 
   def generateHashes = {
-    val result = for (i <- 0 until 50) yield ShaChain.shaChainFromSeed(seed, largestIndex - i)
+    val result =
+      for (i <- 0 until 50)
+        yield ShaChain.shaChainFromSeed(seed, largestIndex - i)
     assert(byteSeqsEqual(expected, result))
   }
 
   def receiveHashes = {
-    var receiver: ShaHashesWithIndex = ShaHashesWithIndex(Map.empty[Index, Bytes], None)
+    var receiver: ShaHashesWithIndex =
+      ShaHashesWithIndex(Map.empty[Index, Bytes], None)
 
     for (i <- 0 until 100) {
-      receiver = ShaChain.addHash(receiver, ShaChain.shaChainFromSeed(seed, largestIndex - i), largestIndex - i)
+      receiver = ShaChain.addHash(
+        receiver,
+        ShaChain.shaChainFromSeed(seed, largestIndex - i),
+        largestIndex - i
+      )
       assert(receiver.hashes.size <= 64)
 
       var j: Long = ShaChain.largestIndex - i
@@ -83,17 +91,27 @@ class ShaChainSpec {
         val ho = ShaChain.getHash(receiver.hashes)(ShaChain moves j)
         assert(ho.isDefined)
         val k = (ShaChain.largestIndex - j).toInt
-        if (k < 50) println("receiveHashes sameElements: " + ho.map(ho1 => java.util.Arrays.equals(expected(k), ho1)) )
+        if (k < 50)
+          println(
+            "receiveHashes sameElements: " + ho
+              .map(ho1 => java.util.Arrays.equals(expected(k), ho1))
+          )
         j = j + 1
       }
-      assert(ShaChain.getHash(receiver.hashes)(ShaChain moves ShaChain.largestIndex - i - 1).isEmpty)
+      assert(
+        ShaChain
+          .getHash(receiver.hashes)(
+            ShaChain moves ShaChain.largestIndex - i - 1
+          )
+          .isEmpty
+      )
     }
 
     import spray.json._
     import com.lightning.walletapp.lnutils.ImplicitJsonFormats._
     import com.lightning.walletapp.lnutils.JsonHttpUtils._
 
-    val a= System.currentTimeMillis()
+    val a = System.currentTimeMillis()
     val string = receiver.toJson.toString
     val object1 = to[ShaHashesWithIndex](string)
     println(System.currentTimeMillis() - a)

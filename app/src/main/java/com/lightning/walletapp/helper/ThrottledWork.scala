@@ -3,7 +3,6 @@ package com.lightning.walletapp.helper
 import rx.lang.scala.Subscription
 import rx.lang.scala.{Observable => Obs}
 
-
 abstract class ThrottledWork[T, V] {
   private var lastWork: Option[T] = None
   private var subscription: Subscription = _

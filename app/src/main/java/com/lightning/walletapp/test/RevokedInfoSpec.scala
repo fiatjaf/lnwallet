@@ -17,8 +17,18 @@ class RevokedInfoSpec {
   val chanId1 = ByteVector.view(random getBytes 32)
   val chanId2 = ByteVector.view(random getBytes 32)
 
-  val ri = RevocationInfo(redeemScriptsToSigs = Nil, claimMainTxSig = None, claimPenaltyTxSig = None, LNParams.broadcaster.perKwThreeSat,
-    LNParams.dust.amount, randomPrivKey.publicKey, 144, randomPrivKey.publicKey, randomPrivKey.publicKey, randomPrivKey.publicKey)
+  val ri = RevocationInfo(
+    redeemScriptsToSigs = Nil,
+    claimMainTxSig = None,
+    claimPenaltyTxSig = None,
+    LNParams.broadcaster.perKwThreeSat,
+    LNParams.dust.amount,
+    randomPrivKey.publicKey,
+    144,
+    randomPrivKey.publicKey,
+    randomPrivKey.publicKey,
+    randomPrivKey.publicKey
+  )
 
   val txid1 = ByteVector.view(random getBytes 32)
   val txid2 = ByteVector.view(random getBytes 32)
@@ -31,7 +41,8 @@ class RevokedInfoSpec {
   val txid8 = ByteVector.view(random getBytes 32)
 
   def allTests = {
-    val serialized1 = LightningMessageCodecs.serialize(revocationInfoCodec encode ri)
+    val serialized1 =
+      LightningMessageCodecs.serialize(revocationInfoCodec encode ri)
     // Sent 3 outgoing payments in chan1
     db.change(RevokedInfoTable.newSql, txid1, chanId1, 1000000000L, serialized1)
     db.change(RevokedInfoTable.newSql, txid2, chanId1, 800000000L, serialized1)
@@ -39,12 +50,35 @@ class RevokedInfoSpec {
     // Then got back an incoming payment in chan1
     db.change(RevokedInfoTable.newSql, txid4, chanId1, 900000000L, serialized1)
 
-
     val c1 = NormalCommits(
-      localParams = LocalParams(null, 0, 0, 0, null, null, null, null, null, null, null, null, isFunder = true),
+      localParams = LocalParams(
+        null,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        isFunder = true
+      ),
       remoteParams = null,
-      LocalCommit(index = 0L, spec = CommitmentSpec(0L, toLocalMsat = 900000000L, toRemoteMsat = 0L), null, null),
-      RemoteCommit(index = 0L, spec = CommitmentSpec(0L, toLocalMsat = 0L, toRemoteMsat = 900000000L), None, null),
+      LocalCommit(
+        index = 0L,
+        spec = CommitmentSpec(0L, toLocalMsat = 900000000L, toRemoteMsat = 0L),
+        null,
+        null
+      ),
+      RemoteCommit(
+        index = 0L,
+        spec = CommitmentSpec(0L, toLocalMsat = 0L, toRemoteMsat = 900000000L),
+        None,
+        null
+      ),
       localChanges = null,
       remoteChanges = null,
       localNextHtlcId = 0L,
@@ -55,18 +89,22 @@ class RevokedInfoSpec {
       channelId = chanId1,
       updateOpt = None,
       channelFlags = None,
-      startedAt = 0L)
+      startedAt = 0L
+    )
 
     val chan1 = new NormalChannel {
       override def REV(cs: NormalCommits, rev: RevokeAndAck): Unit = none
       override def SEND(msg: LightningMessage): Unit = none
       def STORE[T <: ChannelData](data: T) = data
-      override def ASKREFUNDPEER(some: HasNormalCommits, point: Point): Unit = none
+      override def ASKREFUNDPEER(some: HasNormalCommits, point: Point): Unit =
+        none
       override def CLOSEANDWATCH(close: ClosingData): Unit = none
-      override def GETREV(cs: NormalCommits, tx: Transaction): Option[RevokedCommitPublished] = None
+      override def GETREV(
+          cs: NormalCommits,
+          tx: Transaction
+      ): Option[RevokedCommitPublished] = None
       data = NormalData(announce = null, commitments = c1)
     }
-
 
     db.change(RevokedInfoTable.newSql, txid5, chanId2, 1000000000L, serialized1)
     // Attempted to send an outgoing payment in chan2
@@ -76,12 +114,35 @@ class RevokedInfoSpec {
     db.change(RevokedInfoTable.newSql, txid7, chanId2, 999999990L, serialized1)
     db.change(RevokedInfoTable.newSql, txid8, chanId2, 1000000000L, serialized1)
 
-
     val c2 = NormalCommits(
-      localParams = LocalParams(null, 0, 0, 0, null, null, null, null, null, null, null, null, isFunder = false),
+      localParams = LocalParams(
+        null,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        isFunder = false
+      ),
       remoteParams = null,
-      LocalCommit(index = 0L, spec = CommitmentSpec(0L, toLocalMsat = 1000000000L, toRemoteMsat = 0L), null, null),
-      RemoteCommit(index = 0L, spec = CommitmentSpec(0L, toLocalMsat = 0L, toRemoteMsat = 1000000000L), None, null),
+      LocalCommit(
+        index = 0L,
+        spec = CommitmentSpec(0L, toLocalMsat = 1000000000L, toRemoteMsat = 0L),
+        null,
+        null
+      ),
+      RemoteCommit(
+        index = 0L,
+        spec = CommitmentSpec(0L, toLocalMsat = 0L, toRemoteMsat = 1000000000L),
+        None,
+        null
+      ),
       localChanges = null,
       remoteChanges = null,
       localNextHtlcId = 0L,
@@ -92,32 +153,44 @@ class RevokedInfoSpec {
       channelId = chanId2,
       updateOpt = None,
       channelFlags = None,
-      startedAt = 0L)
+      startedAt = 0L
+    )
 
     val chan2 = new NormalChannel {
       override def REV(cs: NormalCommits, rev: RevokeAndAck): Unit = none
       override def SEND(msg: LightningMessage): Unit = none
       def STORE[T <: ChannelData](data: T) = data
-      override def ASKREFUNDPEER(some: HasNormalCommits, point: Point): Unit = none
+      override def ASKREFUNDPEER(some: HasNormalCommits, point: Point): Unit =
+        none
       override def CLOSEANDWATCH(close: ClosingData): Unit = none
-      override def GETREV(cs: NormalCommits, tx: Transaction): Option[RevokedCommitPublished] = None
+      override def GETREV(
+          cs: NormalCommits,
+          tx: Transaction
+      ): Option[RevokedCommitPublished] = None
       data = NormalData(announce = null, commitments = c2)
     }
 
     val reports = Vector(chan1, chan2)
-    val cerberusAct = PaymentInfoWrap.getCerberusActs(reports.flatMap(PaymentInfoWrap.getVulnerableRevVec).toMap).next
+    val cerberusAct = PaymentInfoWrap
+      .getCerberusActs(
+        reports.flatMap(PaymentInfoWrap.getVulnerableRevVec).toMap
+      )
+      .next
     val cerberusPayloadHex = cerberusAct.data.toHex
 
     // Taken from Olympus
     val cerberusPayloadBitVec = ByteVector.fromValidHex(cerberusPayloadHex)
     val cerberusPayloadDecoded = cerberusPayloadCodec decode cerberusPayloadBitVec.toBitVector
-    val CerberusPayload(aesZygotes, halfTxIds) = cerberusPayloadDecoded.require.value
+    val CerberusPayload(aesZygotes, halfTxIds) =
+      cerberusPayloadDecoded.require.value
 
     assert(aesZygotes.size == halfTxIds.size)
-    assert(Set(txid2.toHex take 16, txid3.toHex take 16, txid6.toHex take 16) == halfTxIds.toSet)
+    assert(
+      Set(txid2.toHex take 16, txid3.toHex take 16, txid6.toHex take 16) == halfTxIds.toSet
+    )
 
     for {
-    // Taken from Olympus
+      // Taken from Olympus
       halfTxId \ aesz <- halfTxIds zip aesZygotes
       fullTxidBin <- halfTxIds.zip(Vector(txid2, txid3)).toMap get halfTxId
       revBitVec <- AES.decZygote(aesz, fullTxidBin.toArray) map BitVector.apply

@@ -8,7 +8,6 @@ import org.bitcoinj.store.SPVBlockStore
 import org.bitcoinj.wallet.Wallet
 import android.os.Bundle
 
-
 trait FirstActivity { me: TimerActivity =>
   def prepareFreshWallet(kit: app.WalletKit) = {
     kit.store = new SPVBlockStore(app.params, app.chainFile)
@@ -17,7 +16,9 @@ trait FirstActivity { me: TimerActivity =>
     kit.peerGroup = new PeerGroup(app.params, kit.blockChain)
 
     // Make sure keys are rendered and save to disk
-    kit.wallet.currentAddress(org.bitcoinj.wallet.KeyChain.KeyPurpose.RECEIVE_FUNDS)
+    kit.wallet.currentAddress(
+      org.bitcoinj.wallet.KeyChain.KeyPurpose.RECEIVE_FUNDS
+    )
     kit.wallet.currentAddress(org.bitcoinj.wallet.KeyChain.KeyPurpose.CHANGE)
     kit.wallet.saveToFile(app.walletFile)
 

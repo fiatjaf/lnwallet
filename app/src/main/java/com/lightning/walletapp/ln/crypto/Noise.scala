@@ -6,7 +6,6 @@ import fr.acinq.bitcoin.Crypto
 import scodec.bits.ByteVector
 import java.math.BigInteger
 
-
 object Noise {
   sealed trait MessagePattern
   case object S extends MessagePattern
@@ -19,12 +18,21 @@ object Noise {
   type MessagePatternsList = List[MessagePatterns]
 
   case class KeyPair(pub: ByteVector, priv: ByteVector)
-  case class HandshakePattern(name: String, initiatorPreMessages: MessagePatterns,
-                              responderPreMessages: MessagePatterns, messages: MessagePatternsList)
+  case class HandshakePattern(
+      name: String,
+      initiatorPreMessages: MessagePatterns,
+      responderPreMessages: MessagePatterns,
+      messages: MessagePatternsList
+  )
 
-  val handshakePatternNN = HandshakePattern("NN", Nil, Nil, List(E) :: List(E, EE) :: Nil)
-  val handshakePatternXK = HandshakePattern("XK", Nil, S :: Nil, List(E, ES) :: List(E, EE) :: List(S, SE) :: Nil)
-
+  val handshakePatternNN =
+    HandshakePattern("NN", Nil, Nil, List(E) :: List(E, EE) :: Nil)
+  val handshakePatternXK = HandshakePattern(
+    "XK",
+    Nil,
+    S :: Nil,
+    List(E, ES) :: List(E, EE) :: List(S, SE) :: Nil
+  )
 
   trait DHFunctions {
     def dh(keyPair: KeyPair, publicKey: ByteVector): ByteVector
@@ -38,7 +46,9 @@ object Noise {
   object Secp256k1DHFunctions extends DHFunctions {
     def dh(keyPair: KeyPair, pubKey: ByteVector) = {
       val pointGBigInteger = new BigInteger(1, keyPair.priv.take(32).toArray)
-      val ecPoint = Crypto.curve.getCurve.decodePoint(pubKey.toArray).multiply(pointGBigInteger)
+      val ecPoint = Crypto.curve.getCurve
+        .decodePoint(pubKey.toArray)
+        .multiply(pointGBigInteger)
       Crypto sha256 ByteVector.view(ecPoint.normalize getEncoded true)
     }
 
@@ -53,20 +63,52 @@ object Noise {
   }
 
   trait CipherFunctions {
-    def encrypt(k: ByteVector, n: Long, ad: ByteVector, plaintext: ByteVector): ByteVector
-    def decrypt(k: ByteVector, n: Long, ad: ByteVector, ciphertext: ByteVector): ByteVector
+    def encrypt(
+        k: ByteVector,
+        n: Long,
+        ad: ByteVector,
+        plaintext: ByteVector
+    ): ByteVector
+    def decrypt(
+        k: ByteVector,
+        n: Long,
+        ad: ByteVector,
+        ciphertext: ByteVector
+    ): ByteVector
     val name: String
   }
 
   object Chacha20Poly1305CipherFunctions extends CipherFunctions {
-    def encrypt(k: ByteVector, n: Long, ad: ByteVector, plaintext: ByteVector) = {
-      val (ciphertext, mac) = ChaCha20Poly1305.encrypt(k.toArray, nonce(n).toArray, plaintext.toArray, ad.toArray)
+    def encrypt(
+        k: ByteVector,
+        n: Long,
+        ad: ByteVector,
+        plaintext: ByteVector
+    ) = {
+      val (ciphertext, mac) = ChaCha20Poly1305.encrypt(
+        k.toArray,
+        nonce(n).toArray,
+        plaintext.toArray,
+        ad.toArray
+      )
       ByteVector.view(ciphertext ++ mac)
     }
 
-    def decrypt(k: ByteVector, n: Long, ad: ByteVector, ciphertextAndMac: ByteVector) = {
-      val (ciphertext, mac) = (ciphertextAndMac dropRight 16, ciphertextAndMac takeRight 16)
-      val plain = ChaCha20Poly1305.decrypt(k.toArray, nonce(n).toArray, ciphertext.toArray, ad.toArray, mac.toArray)
+    def decrypt(
+        k: ByteVector,
+        n: Long,
+        ad: ByteVector,
+        ciphertextAndMac: ByteVector
+    ) = {
+      val (ciphertext, mac) =
+        (ciphertextAndMac dropRight 16, ciphertextAndMac takeRight 16)
+      val plain = ChaCha20Poly1305.decrypt(
+        k.toArray,
+        nonce(n).toArray,
+        ciphertext.toArray,
+        ad.toArray,
+        mac.toArray
+      )
       ByteVector.view(plain)
     }
 
@@ -88,7 +130,8 @@ object Noise {
     def hkdf(chainingKey: ByteVector, inputMaterial: ByteVector) = {
       val tempkey = hmacHash(data = inputMaterial, key = chainingKey)
       val firstOutput = hmacHash(data = ByteVector(0x01), key = tempkey)
-      val lastOutput = hmacHash(data = firstOutput ++ ByteVector(0x02), key = tempkey)
+      val lastOutput =
+        hmacHash(data = firstOutput ++ ByteVector(0x02), key = tempkey)
       firstOutput -> lastOutput
     }
   }
@@ -105,20 +148,33 @@ object Noise {
   trait CipherState {
     def cipher: CipherFunctions
     def initializeKey(key: ByteVector): CipherState = CipherState(key, cipher)
-    def encryptWithAd(ad: ByteVector, plaintext: ByteVector): (CipherState, ByteVector)
-    def decryptWithAd(ad: ByteVector, ciphertext: ByteVector): (CipherState, ByteVector)
+    def encryptWithAd(
+        ad: ByteVector,
+        plaintext: ByteVector
+    ): (CipherState, ByteVector)
+    def decryptWithAd(
+        ad: ByteVector,
+        ciphertext: ByteVector
+    ): (CipherState, ByteVector)
     val hasKey: Boolean
   }
 
-  case class UnitializedCipherState(cipher: CipherFunctions) extends CipherState { me =>
+  case class UnitializedCipherState(cipher: CipherFunctions)
+      extends CipherState { me =>
     def decryptWithAd(ad: ByteVector, ciphertext: ByteVector) = me -> ciphertext
     def encryptWithAd(ad: ByteVector, plaintext: ByteVector) = me -> plaintext
     val hasKey = false
   }
 
-  case class InitializedCipherState(k: ByteVector, n: Long, cipher: CipherFunctions) extends CipherState { me =>
-    def decryptWithAd(ad: ByteVector, ciphertext: ByteVector) = copy(n = n + 1) -> cipher.decrypt(k, n, ad, ciphertext)
-    def encryptWithAd(ad: ByteVector, plaintext: ByteVector) = copy(n = n + 1) -> cipher.encrypt(k, n, ad, plaintext)
+  case class InitializedCipherState(
+      k: ByteVector,
+      n: Long,
+      cipher: CipherFunctions
+  ) extends CipherState { me =>
+    def decryptWithAd(ad: ByteVector, ciphertext: ByteVector) =
+      copy(n = n + 1) -> cipher.decrypt(k, n, ad, ciphertext)
+    def encryptWithAd(ad: ByteVector, plaintext: ByteVector) =
+      copy(n = n + 1) -> cipher.encrypt(k, n, ad, plaintext)
     require(k.length == 32)
     val hasKey = true
   }
@@ -133,12 +189,20 @@ object Noise {
       UnitializedCipherState(cipher)
   }
 
-  case class SymmetricState(cipherState: CipherState, ck: ByteVector,
-                            h: ByteVector, hashFunctions: HashFunctions) {
+  case class SymmetricState(
+      cipherState: CipherState,
+      ck: ByteVector,
+      h: ByteVector,
+      hashFunctions: HashFunctions
+  ) {
 
     def mixKey(inputKeyMaterial: ByteVector): SymmetricState = {
-      val (ck1, tempk) = hashFunctions.hkdf(chainingKey = ck, inputMaterial = inputKeyMaterial)
-      val tempk1 = hashFunctions.hashLen match { case 32 => tempk case 64 => tempk take 32 }
+      val (ck1, tempk) =
+        hashFunctions.hkdf(chainingKey = ck, inputMaterial = inputKeyMaterial)
+      val tempk1 = hashFunctions.hashLen match {
+        case 32 => tempk
+        case 64 => tempk take 32
+      }
       copy(cipherState = cipherState initializeKey tempk1, ck = ck1)
     }
 
@@ -165,26 +229,52 @@ object Noise {
 
   object SymmetricState {
     def mkHash(protocolName: ByteVector, hashFunctions: HashFunctions) =
-      if (protocolName.length > hashFunctions.hashLen) hashFunctions.hash(protocolName)
-      else protocolName ++ ByteVector.fill[Byte](hashFunctions.hashLen - protocolName.length)(0)
+      if (protocolName.length > hashFunctions.hashLen)
+        hashFunctions.hash(protocolName)
+      else
+        protocolName ++ ByteVector.fill[Byte](
+          hashFunctions.hashLen - protocolName.length
+        )(0)
 
-    def mk(hash: ByteVector, cipherFunctions: CipherFunctions, hashFunctions: HashFunctions) =
-      new SymmetricState(CipherState(cipherFunctions), ck = hash, h = hash, hashFunctions)
+    def mk(
+        hash: ByteVector,
+        cipherFunctions: CipherFunctions,
+        hashFunctions: HashFunctions
+    ) =
+      new SymmetricState(
+        CipherState(cipherFunctions),
+        ck = hash,
+        h = hash,
+        hashFunctions
+      )
   }
 
   sealed trait HandshakeState
-  case class HandshakeStateWriter(messages: List[MessagePatterns], state: SymmetricState, s: KeyPair,
-                                  e: KeyPair, rs: ByteVector, re: ByteVector, dh: DHFunctions,
-                                  byteStream: ByteStream) extends HandshakeState { me =>
+  case class HandshakeStateWriter(
+      messages: List[MessagePatterns],
+      state: SymmetricState,
+      s: KeyPair,
+      e: KeyPair,
+      rs: ByteVector,
+      re: ByteVector,
+      dh: DHFunctions,
+      byteStream: ByteStream
+  ) extends HandshakeState { me =>
 
-    def toReader = HandshakeStateReader(messages, state, s, e, rs, re, dh, byteStream)
+    def toReader =
+      HandshakeStateReader(messages, state, s, e, rs, re, dh, byteStream)
 
     def fold(pts: MessagePatterns) =
       pts.foldLeft(me -> ByteVector.empty) {
 
         case Tuple2(Tuple2(writer, buffer), E) =>
-          val e1 = dh generateKeyPair ByteVector.view(byteStream getBytes dh.dhLen)
-          (writer.copy(state = writer.state mixHash e1.pub, e = e1), buffer ++ e1.pub)
+          val e1 = dh generateKeyPair ByteVector.view(
+            byteStream getBytes dh.dhLen
+          )
+          (
+            writer.copy(state = writer.state mixHash e1.pub, e = e1),
+            buffer ++ e1.pub
+          )
 
         case Tuple2(Tuple2(writer, buffer), S) =>
           val (state1, ciphertext) = writer.state encryptAndHash s.pub
@@ -216,11 +306,19 @@ object Noise {
     }
   }
 
-  case class HandshakeStateReader(messages: List[MessagePatterns], state: SymmetricState, s: KeyPair,
-                                  e: KeyPair, rs: ByteVector, re: ByteVector, dh: DHFunctions,
-                                  byteStream: ByteStream) extends HandshakeState { me =>
+  case class HandshakeStateReader(
+      messages: List[MessagePatterns],
+      state: SymmetricState,
+      s: KeyPair,
+      e: KeyPair,
+      rs: ByteVector,
+      re: ByteVector,
+      dh: DHFunctions,
+      byteStream: ByteStream
+  ) extends HandshakeState { me =>
 
-    def toWriter = HandshakeStateWriter(messages, state, s, e, rs, re, dh, byteStream)
+    def toWriter =
+      HandshakeStateWriter(messages, state, s, e, rs, re, dh, byteStream)
 
     def fold(pts: MessagePatterns, message: ByteVector) =
       messages.head.foldLeft(me -> message) {
@@ -264,54 +362,107 @@ object Noise {
   }
 
   object HandshakeState {
-    private def makeSymmetricState(handshakePattern: HandshakePattern, prologue: ByteVector,
-                                   dh: DHFunctions, cipher: CipherFunctions, hash: HashFunctions) = {
+    private def makeSymmetricState(
+        handshakePattern: HandshakePattern,
+        prologue: ByteVector,
+        dh: DHFunctions,
+        cipher: CipherFunctions,
+        hash: HashFunctions
+    ) = {
 
       val name = "Noise_" + handshakePattern.name + "_" + dh.name + "_" + cipher.name + "_" + hash.name
-      val symmetricState = SymmetricState.mk(SymmetricState.mkHash(ByteVector.view(name getBytes "UTF-8"), hash), cipher, hash)
+      val symmetricState = SymmetricState.mk(
+        SymmetricState.mkHash(ByteVector.view(name getBytes "UTF-8"), hash),
+        cipher,
+        hash
+      )
       symmetricState mixHash prologue
     }
 
-    def initializeWriter(handshakePattern: HandshakePattern, prologue: ByteVector, s: KeyPair, e: KeyPair,
-                         rs: ByteVector, re: ByteVector, dh: DHFunctions, cipher: CipherFunctions,
-                         hash: HashFunctions, byteStream: ByteStream): HandshakeStateWriter = {
+    def initializeWriter(
+        handshakePattern: HandshakePattern,
+        prologue: ByteVector,
+        s: KeyPair,
+        e: KeyPair,
+        rs: ByteVector,
+        re: ByteVector,
+        dh: DHFunctions,
+        cipher: CipherFunctions,
+        hash: HashFunctions,
+        byteStream: ByteStream
+    ): HandshakeStateWriter = {
 
-      val symmetricState = makeSymmetricState(handshakePattern, prologue, dh, cipher, hash)
-      val symmetricState1 = handshakePattern.initiatorPreMessages.foldLeft(symmetricState) {
-        case (state, EE | ES | SE | SS) => throw new Exception("Invalid state initializeWriter")
-        case (state, E) => state mixHash e.pub
-        case (state, S) => state mixHash s.pub
-      }
+      val symmetricState =
+        makeSymmetricState(handshakePattern, prologue, dh, cipher, hash)
+      val symmetricState1 =
+        handshakePattern.initiatorPreMessages.foldLeft(symmetricState) {
+          case (state, EE | ES | SE | SS) =>
+            throw new Exception("Invalid state initializeWriter")
+          case (state, E) => state mixHash e.pub
+          case (state, S) => state mixHash s.pub
+        }
 
-      val symmetricState2 = handshakePattern.responderPreMessages.foldLeft(symmetricState1) {
-        case (state, EE | ES | SE | SS) => throw new Exception("Invalid state initializeWriter")
-        case (state, E) => state mixHash re
-        case (state, S) => state mixHash rs
-      }
+      val symmetricState2 =
+        handshakePattern.responderPreMessages.foldLeft(symmetricState1) {
+          case (state, EE | ES | SE | SS) =>
+            throw new Exception("Invalid state initializeWriter")
+          case (state, E) => state mixHash re
+          case (state, S) => state mixHash rs
+        }
 
-      HandshakeStateWriter(handshakePattern.messages,
-        symmetricState2, s, e, rs, re, dh, byteStream)
+      HandshakeStateWriter(
+        handshakePattern.messages,
+        symmetricState2,
+        s,
+        e,
+        rs,
+        re,
+        dh,
+        byteStream
+      )
     }
 
-    def initializeReader(handshakePattern: HandshakePattern, prologue: ByteVector, s: KeyPair, e: KeyPair,
-                         rs: ByteVector, re: ByteVector, dh: DHFunctions, cipher: CipherFunctions,
-                         hash: HashFunctions, byteStream: ByteStream): HandshakeStateReader = {
+    def initializeReader(
+        handshakePattern: HandshakePattern,
+        prologue: ByteVector,
+        s: KeyPair,
+        e: KeyPair,
+        rs: ByteVector,
+        re: ByteVector,
+        dh: DHFunctions,
+        cipher: CipherFunctions,
+        hash: HashFunctions,
+        byteStream: ByteStream
+    ): HandshakeStateReader = {
 
-      val symmetricState = makeSymmetricState(handshakePattern, prologue, dh, cipher, hash)
-      val symmetricState1 = handshakePattern.initiatorPreMessages.foldLeft(symmetricState) {
-        case (state, EE | ES | SE | SS) => throw new Exception("Invalid state initializeReader")
-        case (state, E) => state mixHash re
-        case (state, S) => state mixHash rs
-      }
+      val symmetricState =
+        makeSymmetricState(handshakePattern, prologue, dh, cipher, hash)
+      val symmetricState1 =
+        handshakePattern.initiatorPreMessages.foldLeft(symmetricState) {
+          case (state, EE | ES | SE | SS) =>
+            throw new Exception("Invalid state initializeReader")
+          case (state, E) => state mixHash re
+          case (state, S) => state mixHash rs
+        }
 
-      val symmetricState2 = handshakePattern.responderPreMessages.foldLeft(symmetricState1) {
-        case (state, EE | ES | SE | SS) => throw new Exception("Invalid state initializeReader")
-        case (state, E) => state mixHash e.pub
-        case (state, S) => state mixHash s.pub
-      }
+      val symmetricState2 =
+        handshakePattern.responderPreMessages.foldLeft(symmetricState1) {
+          case (state, EE | ES | SE | SS) =>
+            throw new Exception("Invalid state initializeReader")
+          case (state, E) => state mixHash e.pub
+          case (state, S) => state mixHash s.pub
+        }
 
-      HandshakeStateReader(handshakePattern.messages,
-        symmetricState2, s, e, rs, re, dh, byteStream)
+      HandshakeStateReader(
+        handshakePattern.messages,
+        symmetricState2,
+        s,
+        e,
+        rs,
+        re,
+        dh,
+        byteStream
+      )
     }
   }
 }

@@ -10,11 +10,10 @@ import java.io.FileInputStream
 import android.os.Bundle
 import android.view.View
 
-
 class EmergencyActivity extends TimerActivity { me =>
   def viewReport(v: View) = Try(getIntent getStringExtra ERROR_REPORT) match {
     case Success(ereport) => showForm(negTextBuilder(dialog_ok, ereport).create)
-    case _ => app quickToast err_nothing_useful
+    case _                => app quickToast err_nothing_useful
   }
 
   def INIT(savedInstanceState: Bundle) = {
@@ -26,7 +25,8 @@ class EmergencyActivity extends TimerActivity { me =>
     app.kit = new app.WalletKit {
       val stream = new FileInputStream(app.walletFile)
       val proto = WalletProtobufSerializer parseToProto stream
-      wallet = (new WalletProtobufSerializer).readWallet(app.params, null, proto)
+      wallet =
+        (new WalletProtobufSerializer).readWallet(app.params, null, proto)
 
       def startUp = none
       blockChain = null

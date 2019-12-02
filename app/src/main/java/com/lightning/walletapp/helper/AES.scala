@@ -8,18 +8,20 @@ import com.lightning.walletapp.ln.wire.AESZygote
 import javax.crypto.Cipher
 import scala.util.Try
 
-
 object AES {
   def cipher(key: Bytes, initVector: Bytes, mode: Int) =
-    Cipher getInstance "AES/CBC/PKCS5Padding" match { case aesCipher =>
-      val ivParameterSpec: IvParameterSpec = new IvParameterSpec(initVector)
-      aesCipher.init(mode, new SecretKeySpec(key, "AES"), ivParameterSpec)
-      aesCipher
+    Cipher getInstance "AES/CBC/PKCS5Padding" match {
+      case aesCipher =>
+        val ivParameterSpec: IvParameterSpec = new IvParameterSpec(initVector)
+        aesCipher.init(mode, new SecretKeySpec(key, "AES"), ivParameterSpec)
+        aesCipher
     }
 
   private[this] val ivLength = 16
-  def dec(data: Bytes, key: Bytes, initVector: Bytes) = ByteVector.view(cipher(key, initVector, Cipher.DECRYPT_MODE) doFinal data)
-  def enc(data: Bytes, key: Bytes, initVector: Bytes) = ByteVector.view(cipher(key, initVector, Cipher.ENCRYPT_MODE) doFinal data)
+  def dec(data: Bytes, key: Bytes, initVector: Bytes) =
+    ByteVector.view(cipher(key, initVector, Cipher.DECRYPT_MODE) doFinal data)
+  def enc(data: Bytes, key: Bytes, initVector: Bytes) =
+    ByteVector.view(cipher(key, initVector, Cipher.ENCRYPT_MODE) doFinal data)
 
   // Used for Object -> Json -> Encrypted -> Zygote -> BitVector
 

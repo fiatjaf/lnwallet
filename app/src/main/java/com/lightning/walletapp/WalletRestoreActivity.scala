@@ -17,11 +17,18 @@ import org.bitcoinj.crypto.MnemonicCode
 import java.util.Calendar
 import android.os.Bundle
 
-
-class WhenPicker(host: TimerActivity, start: Long) extends DatePicker(host) with OnDateChangedListener { me =>
-  def humanTime = java.text.DateFormat getDateInstance java.text.DateFormat.MEDIUM format cal.getTime
-  def onDateChanged(view: DatePicker, year: Int, mon: Int, date: Int) = cal.set(year, mon, date)
-  def refresh = runAnd(me)(try getParent.asInstanceOf[ViewGroup] removeView me catch none)
+class WhenPicker(host: TimerActivity, start: Long)
+    extends DatePicker(host)
+    with OnDateChangedListener { me =>
+  def humanTime =
+    java.text.DateFormat getDateInstance java.text.DateFormat.MEDIUM format cal.getTime
+  def onDateChanged(view: DatePicker, year: Int, mon: Int, date: Int) =
+    cal.set(year, mon, date)
+  def refresh =
+    runAnd(me)(
+      try getParent.asInstanceOf[ViewGroup] removeView me
+      catch none
+    )
   init(cal get Calendar.YEAR, cal get Calendar.MONTH, cal get Calendar.DATE, me)
 
   lazy val cal = {
@@ -33,9 +40,12 @@ class WhenPicker(host: TimerActivity, start: Long) extends DatePicker(host) with
 }
 
 class WalletRestoreActivity extends TimerActivity with FirstActivity { me =>
-  lazy val localBackupStatus = findViewById(R.id.localBackupStatus).asInstanceOf[TextView]
-  lazy val restoreCode = findViewById(R.id.restoreCode).asInstanceOf[NachoTextView]
-  lazy val restoreProgress = findViewById(R.id.restoreProgress).asInstanceOf[View]
+  lazy val localBackupStatus = findViewById(R.id.localBackupStatus)
+    .asInstanceOf[TextView]
+  lazy val restoreCode = findViewById(R.id.restoreCode)
+    .asInstanceOf[NachoTextView]
+  lazy val restoreProgress = findViewById(R.id.restoreProgress)
+    .asInstanceOf[View]
   lazy val restoreWallet = findViewById(R.id.restoreWallet).asInstanceOf[Button]
   lazy val restoreWhen = findViewById(R.id.restoreWhen).asInstanceOf[Button]
   lazy val restoreInfo = findViewById(R.id.restoreInfo).asInstanceOf[View]
@@ -51,7 +61,8 @@ class WalletRestoreActivity extends TimerActivity with FirstActivity { me =>
     restoreCode addTextChangedListener new TextChangedWatcher {
       def isMnemonicCorrect = getMnemonic.split("\\s+").length > 11
       override def onTextChanged(c: CharSequence, x: Int, y: Int, z: Int) = {
-        val txt = if (isMnemonicCorrect) wallet_restore else restore_mnemonic_wrong
+        val txt =
+          if (isMnemonicCorrect) wallet_restore else restore_mnemonic_wrong
         restoreWallet setEnabled isMnemonicCorrect
         restoreWallet setText txt
       }
@@ -73,8 +84,13 @@ class WalletRestoreActivity extends TimerActivity with FirstActivity { me =>
   }
 
   type GrantResults = Array[Int]
-  override def onBackPressed: Unit = wrap(super.onBackPressed)(app.kit.stopAsync)
-  override def onRequestPermissionsResult(reqCode: Int, perms: Array[String], results: GrantResults) =
+  override def onBackPressed: Unit =
+    wrap(super.onBackPressed)(app.kit.stopAsync)
+  override def onRequestPermissionsResult(
+      reqCode: Int,
+      perms: Array[String],
+      results: GrantResults
+  ) =
     if (LocalBackup.isAllowed(me) && LocalBackup.isExternalStorageWritable && backupFile.exists)
       localBackupStatus setText ln_backup_detected
 
@@ -84,8 +100,13 @@ class WalletRestoreActivity extends TimerActivity with FirstActivity { me =>
   }
 
   def setWhen(btn: View) =
-    mkCheckForm(alert => rm(alert)(restoreWhen setText dp.humanTime),
-      none, baseBuilder(null, dp.refresh), dialog_ok, dialog_cancel)
+    mkCheckForm(
+      alert => rm(alert)(restoreWhen setText dp.humanTime),
+      none,
+      baseBuilder(null, dp.refresh),
+      dialog_ok,
+      dialog_cancel
+    )
 
   def recWallet(top: View) =
     app.kit = new app.WalletKit {
@@ -94,7 +115,12 @@ class WalletRestoreActivity extends TimerActivity with FirstActivity { me =>
       startAsync
 
       def startUp = {
-        val seed = new DeterministicSeed(getMnemonic, null, "", dp.cal.getTimeInMillis / 1000)
+        val seed = new DeterministicSeed(
+          getMnemonic,
+          null,
+          "",
+          dp.cal.getTimeInMillis / 1000
+        )
         val canRead = LocalBackup.isAllowed(me) && LocalBackup.isExternalStorageWritable && backupFile.exists
         LNParams setup seed.getSeedBytes
 
@@ -112,15 +138,18 @@ class WalletRestoreActivity extends TimerActivity with FirstActivity { me =>
               localBackups.normal.foreach(restoreNormalChannel)
               me prepareFreshWallet app.kit
 
-            case Failure(reason) => UITask {
-              val message = getString(ln_decrypt_fail).format(reason.getMessage)
-              showForm(negTextBuilder(dialog_ok, message).create)
-              restoreProgress setVisibility View.GONE
-              restoreInfo setVisibility View.VISIBLE
-            }.run
+            case Failure(reason) =>
+              UITask {
+                val message =
+                  getString(ln_decrypt_fail).format(reason.getMessage)
+                showForm(negTextBuilder(dialog_ok, message).create)
+                restoreProgress setVisibility View.GONE
+                restoreInfo setVisibility View.VISIBLE
+              }.run
           }
 
-        if (canRead) restoreUsingBackup else {
+        if (canRead) restoreUsingBackup
+        else {
           wallet = Wallet.fromSeed(app.params, seed)
           me prepareFreshWallet app.kit
         }
@@ -130,7 +159,10 @@ class WalletRestoreActivity extends TimerActivity with FirstActivity { me =>
   // Restoring from local backup
 
   def restoreHostedChannel(some: HostedCommits) = {
-    val chan = ChannelManager.createHostedChannel(ChannelManager.operationalListeners, some)
+    val chan = ChannelManager.createHostedChannel(
+      ChannelManager.operationalListeners,
+      some
+    )
     // Do not use STORE because it invokes a backup saving while we already have it
     ChannelManager.all :+= chan
     ChannelWrap put some
@@ -138,11 +170,12 @@ class WalletRestoreActivity extends TimerActivity with FirstActivity { me =>
 
   def restoreNormalChannel(some: HasNormalCommits) = some match {
     case closing: ClosingData => restoreClosedNormalChannel(closing)
-    case _ => restoreNotClosedNormalChannel(some)
+    case _                    => restoreNotClosedNormalChannel(some)
   }
 
   def restoreClosedNormalChannel(cd: ClosingData) = {
-    val chan = ChannelManager.createChannel(ChannelManager.operationalListeners, cd)
+    val chan =
+      ChannelManager.createChannel(ChannelManager.operationalListeners, cd)
     // Watch future commit spends and check if any was published while we were offline
     app.kit.wallet.addWatchedScripts(app.kit closingPubKeyScripts cd)
     ChannelManager.check2ndLevelSpent(chan, cd)
@@ -152,7 +185,8 @@ class WalletRestoreActivity extends TimerActivity with FirstActivity { me =>
   }
 
   def restoreNotClosedNormalChannel(some: HasNormalCommits) = {
-    val chan = ChannelManager.createChannel(ChannelManager.operationalListeners, some)
+    val chan =
+      ChannelManager.createChannel(ChannelManager.operationalListeners, some)
     // Watch for future channel spends and check if any was published while we were offline
     app.kit.wallet.addWatchedScripts(app.kit fundingPubScript some)
     ChannelManager.check1stLevelSpent(chan, some)

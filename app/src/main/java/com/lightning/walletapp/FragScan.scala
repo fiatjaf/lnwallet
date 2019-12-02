@@ -12,7 +12,6 @@ import com.lightning.walletapp.Utils.app
 import android.support.v4.view.ViewPager
 import android.os.Bundle
 
-
 trait ScanActivity extends TimerActivity {
   lazy val walletPager = findViewById(R.id.walletPager).asInstanceOf[ViewPager]
   val slidingFragmentAdapter: FragmentStatePagerAdapter
@@ -32,29 +31,48 @@ class FragScan extends Fragment with BarcodeCallback { me =>
   var barcodeReader: BarcodeView = _
   import host._
 
-  override def onCreateView(inflator: LayoutInflater, vg: ViewGroup, bn: Bundle) =
+  override def onCreateView(
+      inflator: LayoutInflater,
+      vg: ViewGroup,
+      bn: Bundle
+  ) =
     inflator.inflate(R.layout.frag_view_pager_scan, vg, false)
 
-  override def onViewCreated(view: View, savedInstanceState: Bundle) = if (app.isAlive) {
-    val allowed = ContextCompat.checkSelfPermission(host, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-    if (!allowed) ActivityCompat.requestPermissions(host, Array(android.Manifest.permission.CAMERA), 104)
-    barcodeReader = view.findViewById(R.id.reader).asInstanceOf[BarcodeView]
-  }
+  override def onViewCreated(view: View, savedInstanceState: Bundle) =
+    if (app.isAlive) {
+      val allowed = ContextCompat.checkSelfPermission(
+        host,
+        android.Manifest.permission.CAMERA
+      ) == PackageManager.PERMISSION_GRANTED
+      if (!allowed)
+        ActivityCompat.requestPermissions(
+          host,
+          Array(android.Manifest.permission.CAMERA),
+          104
+        )
+      barcodeReader = view.findViewById(R.id.reader).asInstanceOf[BarcodeView]
+    }
 
   override def setUserVisibleHint(isVisibleToUser: Boolean) = {
-    if (isAdded && isVisibleToUser) runAnd(barcodeReader decodeContinuous me)(barcodeReader.resume)
-    else if (isAdded) runAnd(getFragmentManager.beginTransaction.detach(me).attach(me).commit)(barcodeReader.pause)
+    if (isAdded && isVisibleToUser)
+      runAnd(barcodeReader decodeContinuous me)(barcodeReader.resume)
+    else if (isAdded)
+      runAnd(getFragmentManager.beginTransaction.detach(me).attach(me).commit)(
+        barcodeReader.pause
+      )
     super.setUserVisibleHint(isVisibleToUser)
   }
 
   // Only try to decode result after some time
   override def possibleResultPoints(points: Points) = none
   override def barcodeResult(res: BarcodeResult) = Option(res.getText) foreach {
-    rawText => if (System.currentTimeMillis - lastAttempt > 3000) tryParseQR(rawText)
+    rawText =>
+      if (System.currentTimeMillis - lastAttempt > 3000) tryParseQR(rawText)
   }
 
   def tryParseQR(text: String) = {
-    def fail(err: Throwable) = runAnd(app quickToast err_nothing_useful)(barcodeReader.resume)
+    def fail(err: Throwable) =
+      runAnd(app quickToast err_nothing_useful)(barcodeReader.resume)
     <(app.TransData recordValue text, fail)(parseSuccess => host.checkTransData)
     lastAttempt = System.currentTimeMillis
     barcodeReader.pause
